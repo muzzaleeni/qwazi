@@ -30,6 +30,12 @@ npm run postpartum:test
 npm run postpartum:example
 ```
 
+Postpartum with audit log:
+
+```bash
+npm run postpartum -- --input test/postpartum-vignettes/04_urgent_mental_health_high_score.json --audit-log logs/postpartum-audit.jsonl --source local-dev --run-id run-001
+```
+
 Cardiovascular module:
 
 ```bash

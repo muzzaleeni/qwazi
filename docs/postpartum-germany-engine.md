@@ -6,6 +6,7 @@ This module pivots the project to postpartum silent morbidity screening for Germ
 
 - Population: postpartum adults (weeks 1-52)
 - Region: Germany (`112` emergency escalation)
+- Locale: English-only user-facing copy in v1
 - Domains:
   - mental health safety and functional deterioration
   - pelvic floor / recovery complications
@@ -28,6 +29,12 @@ Run one case:
 npm run postpartum -- --input test/postpartum-vignettes/04_urgent_mental_health_high_score.json
 ```
 
+Run one case and write pilot audit event (JSONL):
+
+```bash
+npm run postpartum -- --input test/postpartum-vignettes/04_urgent_mental_health_high_score.json --audit-log logs/postpartum-audit.jsonl --source local-dev --run-id run-001
+```
+
 Run postpartum regression vignettes:
 
 ```bash
@@ -47,10 +54,13 @@ npm run postpartum:example
 - Types: `src/postpartum/types.ts`
 - CLI: `src/postpartum/cli.ts`
 - Vignette runner: `src/postpartum/run-vignettes.ts`
+- English copy pack: `src/postpartum/copy/en.ts`
+- Audit logging: `src/postpartum/audit.ts`
 - Test cases: `test/postpartum-vignettes/*.json`
 
 ## Notes
 
 - v1 is deterministic (rule-based), with conservative uncertainty escalation.
 - every result now includes a structured `actionPlan` with Germany-specific routing.
+- CLI supports JSONL pilot audit logs via `--audit-log` (with optional `--include-input`).
 - This is triage support logic, not diagnosis or treatment advice.

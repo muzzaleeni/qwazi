@@ -122,6 +122,8 @@ export interface PostpartumUncertaintyTrace {
 
 export interface PostpartumActionPlan {
   level: PostpartumTriageLevel;
+  title: string;
+  summary: string;
   primaryRoute:
     | "CALL_EMERGENCY_112"
     | "SAME_DAY_MENTAL_HEALTH_ASSESSMENT"

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { buildPostpartumEnglishCopyPack } from "./copy/en";
 import {
   ConfidenceBucket,
   PostpartumActionPlan,
@@ -268,100 +269,73 @@ function buildActionPlan(
   emergencyNumber: string,
   domain: "mental" | "pelvic" | "mixed"
 ): PostpartumActionPlan {
-  const commonSafetyNet = [
-    `Call ${emergencyNumber} immediately if suicidal thoughts with intent, thoughts of harming the baby, psychosis signs, heavy bleeding, collapse, or severe breathing/chest symptoms occur.`,
-    "Do not wait for a scheduled appointment if symptoms rapidly worsen.",
-  ];
+  const copy = buildPostpartumEnglishCopyPack(emergencyNumber);
 
   if (level === EMERGENCY) {
+    const route = "CALL_EMERGENCY_112";
     return {
       level,
-      primaryRoute: "CALL_EMERGENCY_112",
+      title: copy.routeCopy[route].title,
+      summary: copy.routeCopy[route].summary,
+      primaryRoute: route,
       timeframe: "NOW",
-      recommendedContacts: [
-        emergencyNumber,
-        "nearest emergency department",
-      ],
-      instructions: [
-        `Call ${emergencyNumber} now.`,
-        "Stay with a trusted adult if possible until emergency care is reached.",
-        "If safe, bring medication list and postpartum timeline.",
-      ],
-      safetyNet: commonSafetyNet,
+      recommendedContacts: copy.routeCopy[route].recommendedContacts,
+      instructions: copy.routeCopy[route].instructions,
+      safetyNet: copy.commonSafetyNet,
     };
   }
 
   if (level === URGENT) {
     if (domain === "mental") {
+      const route = "SAME_DAY_MENTAL_HEALTH_ASSESSMENT";
       return {
         level,
-        primaryRoute: "SAME_DAY_MENTAL_HEALTH_ASSESSMENT",
+        title: copy.routeCopy[route].title,
+        summary: copy.routeCopy[route].summary,
+        primaryRoute: route,
         timeframe: "TODAY",
-        recommendedContacts: [
-          "same-day psychiatric assessment service",
-          "Hausarzt (same day)",
-          "midwife/Hebamme for immediate escalation support",
-        ],
-        instructions: [
-          "Arrange a same-day mental health assessment.",
-          "If same-day psychiatry is unavailable, seek same-day Hausarzt/OB-GYN review.",
-          "Do not remain alone if safety feels uncertain.",
-        ],
-        safetyNet: commonSafetyNet,
+        recommendedContacts: copy.routeCopy[route].recommendedContacts,
+        instructions: copy.routeCopy[route].instructions,
+        safetyNet: copy.commonSafetyNet,
       };
     }
 
     if (domain === "pelvic") {
+      const route = "SAME_DAY_OBGYN_OR_HAUSARZT";
       return {
         level,
-        primaryRoute: "SAME_DAY_OBGYN_OR_HAUSARZT",
+        title: copy.routeCopy[route].title,
+        summary: copy.routeCopy[route].summary,
+        primaryRoute: route,
         timeframe: "TODAY",
-        recommendedContacts: [
-          "OB-GYN (same day)",
-          "Hausarzt (same day)",
-          "postpartum hospital clinic/ambulatory gyn service",
-        ],
-        instructions: [
-          "Arrange same-day OB-GYN or Hausarzt assessment.",
-          "Bring details of delivery type, tear history, and symptom timeline.",
-          "Request pelvic floor and wound-focused evaluation if relevant.",
-        ],
-        safetyNet: commonSafetyNet,
+        recommendedContacts: copy.routeCopy[route].recommendedContacts,
+        instructions: copy.routeCopy[route].instructions,
+        safetyNet: copy.commonSafetyNet,
       };
     }
 
+    const route = "SAME_DAY_MIXED_MENTAL_AND_OBGYN";
     return {
       level,
-      primaryRoute: "SAME_DAY_MIXED_MENTAL_AND_OBGYN",
+      title: copy.routeCopy[route].title,
+      summary: copy.routeCopy[route].summary,
+      primaryRoute: route,
       timeframe: "TODAY",
-      recommendedContacts: [
-        "same-day Hausarzt or OB-GYN",
-        "same-day mental health assessment service",
-        "midwife/Hebamme for routing support",
-      ],
-      instructions: [
-        "Arrange same-day assessment covering both mental health and physical postpartum recovery.",
-        "Prioritize whichever appointment is available first today.",
-        "If safety risk increases, escalate to emergency immediately.",
-      ],
-      safetyNet: commonSafetyNet,
+      recommendedContacts: copy.routeCopy[route].recommendedContacts,
+      instructions: copy.routeCopy[route].instructions,
+      safetyNet: copy.commonSafetyNet,
     };
   }
 
+  const route = "ROUTINE_POSTPARTUM_FOLLOWUP";
   return {
     level,
-    primaryRoute: "ROUTINE_POSTPARTUM_FOLLOWUP",
+    title: copy.routeCopy[route].title,
+    summary: copy.routeCopy[route].summary,
+    primaryRoute: route,
     timeframe: "WITHIN_7_DAYS",
-    recommendedContacts: [
-      "scheduled OB-GYN follow-up",
-      "Hausarzt follow-up",
-      "midwife/Hebamme check-in if available",
-    ],
-    instructions: [
-      "Book a routine follow-up within 7 days.",
-      "Track symptom frequency and functional impact daily.",
-      "Re-run triage immediately if symptoms worsen or new red flags appear.",
-    ],
-    safetyNet: commonSafetyNet,
+    recommendedContacts: copy.routeCopy[route].recommendedContacts,
+    instructions: copy.routeCopy[route].instructions,
+    safetyNet: copy.commonSafetyNet,
   };
 }
