@@ -2,7 +2,13 @@
   "name": "qwazi",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
+    "preinstall": "node scripts/check-node-version.cjs",
+    "prepostpartum:web": "node scripts/check-node-version.cjs",
+    "prepostpartum:web:test": "node scripts/check-node-version.cjs",
     "triage": "tsx src/triage/cli.ts",
     "triage:test": "tsx src/triage/run-vignettes.ts",
     "postpartum": "tsx src/postpartum/cli.ts",

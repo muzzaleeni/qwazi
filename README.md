@@ -10,7 +10,10 @@ Also included:
 
 ## Quickstart
 
+Node requirement: `20.x` (pinned in `.nvmrc`).
+
 ```bash
+nvm use
 npm install
 ```
 

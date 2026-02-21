@@ -20,6 +20,7 @@ This module pivots the project to postpartum silent morbidity screening for Germ
 Install dependencies:
 
 ```bash
+nvm use
 npm install
 ```
 
