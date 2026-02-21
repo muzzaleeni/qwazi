@@ -1,0 +1,103 @@
+{
+  "version": "1.0.0",
+  "metadata": {
+    "name": "Women-Specific Cardiovascular Triage v1",
+    "market": "US",
+    "createdOn": "2026-02-21"
+  },
+  "redFlagRules": [
+    {
+      "id": "RF001",
+      "label": "Severe chest discomfort >= 10 minutes",
+      "description": "Current severe chest discomfort lasting at least 10 minutes."
+    },
+    {
+      "id": "RF002",
+      "label": "Chest discomfort + shortness of breath at rest",
+      "description": "Chest discomfort with concurrent shortness of breath at rest."
+    },
+    {
+      "id": "RF003",
+      "label": "Chest discomfort + fainting/near-fainting",
+      "description": "Chest discomfort with syncope or near-syncope."
+    },
+    {
+      "id": "RF004",
+      "label": "Chest discomfort + cold sweat + nausea/vomiting",
+      "description": "Cluster of symptoms suggestive of acute high-risk event."
+    },
+    {
+      "id": "RF005",
+      "label": "New neurologic signs",
+      "description": "Confusion, speech difficulty, or unilateral weakness/facial droop."
+    },
+    {
+      "id": "RF006",
+      "label": "Rapid worsening during session",
+      "description": "Symptoms rapidly worsen while completing triage."
+    },
+    {
+      "id": "RF007",
+      "label": "Life-threatening self-assessment",
+      "description": "User reports symptoms feel life-threatening right now."
+    }
+  ],
+  "scoring": {
+    "symptoms": {
+      "chestDiscomfortNonSevere": 3,
+      "shortnessOfBreathNonSevere": 2,
+      "referredDiscomfortJawNeckBackShoulderArm": 2,
+      "nauseaOrVomiting": 1,
+      "coldSweat": 2,
+      "lightheadedOrNearSyncope": 2,
+      "palpitations": 1,
+      "unusualSevereFatigue": 2,
+      "worseningPatternRecent": 2,
+      "episodeDurationAtLeast20Min": 2
+    },
+    "history": {
+      "priorCardiovascularDisease": 4,
+      "hypertension": 1,
+      "diabetes": 2,
+      "highCholesterol": 1,
+      "currentOrRecentSmoking": 1,
+      "familyHistoryPrematureCVD": 1
+    },
+    "womenSpecific": {
+      "pregnancyHypertensiveDisorderOrGDMHistory": 2,
+      "earlyMenopauseBefore45": 1,
+      "autoimmuneDisease": 1,
+      "migraineWithAura": 1
+    },
+    "ageBand": {
+      "18-39": 0,
+      "40-54": 1,
+      "55-64": 2,
+      "65+": 3
+    }
+  },
+  "thresholds": {
+    "urgentSameDayMin": 8
+  },
+  "confidencePolicy": {
+    "criticalInputs": [
+      "chestDiscomfortPresence",
+      "shortnessOfBreathPresence",
+      "onsetTiming",
+      "progression",
+      "faintingOrNearFaintingPresence"
+    ],
+    "high": "All critical inputs present and no contradictions.",
+    "medium": "One critical input missing or minor contradiction.",
+    "low": "Two or more critical inputs missing, major contradiction, or user uncertainty on key items."
+  },
+  "uncertaintyPolicy": {
+    "escalateOneLevel": true,
+    "conditions": [
+      "cannotCharacterizeSeverityOrDuration",
+      "inconsistencyPresent",
+      "missingMoreThanTwoCriticalInputs",
+      "lowConfidence"
+    ]
+  }
+}
