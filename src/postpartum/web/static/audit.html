@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Postpartum Triage History</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <p class="eyebrow">Germany Workflow / English Locale</p>
+        <h1>Postpartum Triage History</h1>
+        <p>Recent persistent triage events from local JSONL history.</p>
+        <p class="hero-links"><a href="/">Back to Triage Form</a></p>
+      </header>
+
+      <section class="panel">
+        <div class="dashboard-toolbar">
+          <label>
+            Limit
+            <input id="limit" type="number" min="1" max="200" value="50" />
+          </label>
+          <button id="refresh" type="button">Refresh</button>
+          <span id="status" class="status">Loading…</span>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Level</th>
+                <th>Route</th>
+                <th>Escalated</th>
+                <th>Red Flags</th>
+                <th>Score</th>
+                <th>Confidence</th>
+                <th>Source</th>
+                <th>Run ID</th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              <tr><td colspan="9">No data.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="/audit.js"></script>
+  </body>
+</html>

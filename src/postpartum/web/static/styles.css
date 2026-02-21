@@ -53,6 +53,20 @@ body {
   color: var(--muted);
 }
 
+.hero-links {
+  margin-top: 0.7rem;
+}
+
+.hero-links a {
+  color: var(--brand);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.hero-links a:hover {
+  text-decoration: underline;
+}
+
 .eyebrow {
   margin: 0;
   text-transform: uppercase;
@@ -230,6 +244,56 @@ pre {
 
 .hidden {
   display: none;
+}
+
+.dashboard-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.dashboard-toolbar input {
+  width: 90px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.35rem 0.45rem;
+}
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+  font-size: 0.88rem;
+}
+
+th,
+td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.82rem;
+  color: #24385f;
+  background: #f6f9ff;
+  position: sticky;
+  top: 0;
+}
+
+tbody tr:hover {
+  background: #f9fbff;
 }
 
 .level-emergency {

@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { extname, join, resolve } from "node:path";
 import { URL } from "node:url";
-import { appendAuditEventJsonl, createPostpartumAuditEvent } from "../audit";
+import {
+  appendAuditEventJsonl,
+  createPostpartumAuditEvent,
+  readAuditEventsJsonl,
+} from "../audit";
 import { evaluatePostpartumTriage, loadPostpartumRulesFromFile } from "../evaluator";
 import { PostpartumInput } from "../types";
 
@@ -10,6 +14,7 @@ const PORT = Number(process.env.PORT ?? 4173);
 const STATIC_DIR = resolve(__dirname, "static");
 const RULES_PATH = resolve(process.cwd(), "src/config/rules.postpartum.de.v1.json");
 const DEFAULT_AUDIT_LOG = resolve(process.cwd(), "logs/postpartum-web.jsonl");
+const DEFAULT_HISTORY_LOG = resolve(process.cwd(), "logs/postpartum-history.jsonl");
 
 const rules = loadPostpartumRulesFromFile(RULES_PATH);
 
@@ -34,6 +39,16 @@ function main() {
           emergencyNumber: rules.metadata.emergencyNumber,
           market: "DE",
           locale: "en",
+        });
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/postpartum/audit/recent") {
+        const limit = parsePositiveInt(url.searchParams.get("limit"), 50, 200);
+        const events = readAuditEventsJsonl(DEFAULT_HISTORY_LOG, limit);
+        return json(res, 200, {
+          events,
+          count: events.length,
+          limit,
         });
       }
 
@@ -69,6 +84,11 @@ async function handleEvaluate(payload: unknown, res: ServerResponse) {
 
   const input = extractInput(payload);
   const result = evaluatePostpartumTriage(input, rules);
+
+  const historyEvent = createPostpartumAuditEvent(input, result, {
+    source: "postpartum-web-ui",
+  });
+  appendAuditEventJsonl(DEFAULT_HISTORY_LOG, historyEvent);
 
   const audit = isRecord(payload.audit) ? payload.audit : undefined;
   const auditEnabled = Boolean(audit?.enabled);
@@ -154,6 +174,13 @@ function json(res: ServerResponse, status: number, payload: unknown) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function parsePositiveInt(raw: string | null, fallback: number, max: number): number {
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, max);
 }
 
 main();

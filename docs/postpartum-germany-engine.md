@@ -41,6 +41,12 @@ Then open:
 http://localhost:4173
 ```
 
+Triage history dashboard:
+
+```text
+http://localhost:4173/audit.html
+```
+
 Run one case and write pilot audit event (JSONL):
 
 ```bash
@@ -77,4 +83,6 @@ npm run postpartum:example
 - v1 is deterministic (rule-based), with conservative uncertainty escalation.
 - every result now includes a structured `actionPlan` with Germany-specific routing.
 - CLI supports JSONL pilot audit logs via `--audit-log` (with optional `--include-input`).
+- Web evaluation calls are persisted automatically to `logs/postpartum-history.jsonl`.
+- Recent history endpoint: `GET /api/postpartum/audit/recent?limit=50`.
 - This is triage support logic, not diagnosis or treatment advice.

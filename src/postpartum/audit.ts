@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { PostpartumInput, PostpartumResult } from "./types";
 
@@ -73,4 +73,28 @@ export function appendAuditEventJsonl(pathToJsonl: string, event: PostpartumAudi
   const absolutePath = resolve(pathToJsonl);
   mkdirSync(dirname(absolutePath), { recursive: true });
   appendFileSync(absolutePath, `${JSON.stringify(event)}\n`, "utf8");
+}
+
+export function readAuditEventsJsonl(pathToJsonl: string, limit = 50): PostpartumAuditEvent[] {
+  const absolutePath = resolve(pathToJsonl);
+  if (!existsSync(absolutePath)) return [];
+
+  const raw = readFileSync(absolutePath, "utf8");
+  if (!raw.trim()) return [];
+
+  const parsed = raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      try {
+        return JSON.parse(line) as PostpartumAuditEvent;
+      } catch {
+        return null;
+      }
+    })
+    .filter((item): item is PostpartumAuditEvent => item !== null);
+
+  const boundedLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 50;
+  return parsed.slice(-boundedLimit).reverse();
 }
