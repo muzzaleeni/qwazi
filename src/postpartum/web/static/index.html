@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Qwazi Postpartum Triage (DE workflow, EN locale)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <p class="eyebrow">Germany Workflow / English Locale</p>
+        <h1>Postpartum Silent Morbidity Triage</h1>
+        <p>
+          Structured prototype for postpartum mental-health and pelvic-floor risk routing.
+          Emergency route uses <strong>112</strong>.
+        </p>
+      </header>
+
+      <section class="panel panel-form">
+        <div class="panel-head">
+          <h2>Input</h2>
+          <div class="actions">
+            <button type="button" id="preset-urgent">Load Urgent Mental Case</button>
+            <button type="button" id="preset-emergency">Load Emergency Case</button>
+            <button type="button" id="reset-form">Reset</button>
+          </div>
+        </div>
+
+        <form id="triage-form">
+          <div class="grid">
+            <fieldset>
+              <legend>Postpartum Context</legend>
+              <label>
+                Weeks postpartum
+                <input id="weeksPostpartum" type="number" min="0" max="52" step="1" />
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Safety Red Flags</legend>
+              <label><input id="suicidalIdeationNow" type="checkbox" /> Suicidal ideation now</label>
+              <label><input id="suicidalIntentOrPlan" type="checkbox" /> Suicidal intent or plan</label>
+              <label><input id="thoughtsOfHarmingBaby" type="checkbox" /> Thoughts of harming baby</label>
+              <label><input id="psychosisWarningSigns" type="checkbox" /> Psychosis warning signs</label>
+              <label><input id="heavyBleedingEmergencyPattern" type="checkbox" /> Heavy bleeding emergency pattern</label>
+              <label><input id="highFeverAndSeverePain" type="checkbox" /> High fever + severe pain</label>
+              <label><input id="syncopeOrCollapse" type="checkbox" /> Syncope or collapse</label>
+              <label><input id="chestPainOrSevereBreathlessness" type="checkbox" /> Chest pain or severe breathlessness</label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Mental Health Symptoms</legend>
+              <label><input id="depressedMoodMostDays" type="checkbox" /> Depressed mood most days</label>
+              <label><input id="anxietyOrPanicMostDays" type="checkbox" /> Anxiety or panic most days</label>
+              <label><input id="sleepSeverelyDisruptedNotByBaby" type="checkbox" /> Severe sleep disruption (not only baby-related)</label>
+              <label><input id="bondingDifficulty" type="checkbox" /> Bonding difficulty</label>
+              <label><input id="anhedonia" type="checkbox" /> Anhedonia</label>
+              <label><input id="functionalImpairmentMental" type="checkbox" /> Functional impairment (mental)</label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Pelvic Floor / Recovery</legend>
+              <label><input id="urinaryIncontinenceFrequent" type="checkbox" /> Frequent urinary incontinence</label>
+              <label><input id="fecalIncontinenceAny" type="checkbox" /> Any fecal incontinence</label>
+              <label><input id="urinaryRetention" type="checkbox" /> Urinary retention</label>
+              <label><input id="severePerinealPainPersistent" type="checkbox" /> Persistent severe perineal pain</label>
+              <label><input id="perinealWoundConcerns" type="checkbox" /> Perineal wound concerns</label>
+              <label><input id="prolapseBulgeSymptoms" type="checkbox" /> Prolapse / bulge symptoms</label>
+              <label><input id="dyspareuniaPersistentSevere" type="checkbox" /> Persistent severe dyspareunia</label>
+              <label><input id="functionalImpairmentPelvic" type="checkbox" /> Functional impairment (pelvic)</label>
+            </fieldset>
+
+            <fieldset>
+              <legend>History / Context</legend>
+              <label><input id="priorDepressionOrAnxiety" type="checkbox" /> Prior depression or anxiety</label>
+              <label><input id="priorPostpartumDepression" type="checkbox" /> Prior postpartum depression</label>
+              <label><input id="birthTraumaOrEmergencyDelivery" type="checkbox" /> Birth trauma / emergency delivery</label>
+              <label><input id="oasisHistory" type="checkbox" /> OASIS history</label>
+              <label><input id="poorSocialSupport" type="checkbox" /> Poor social support</label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Uncertainty Signals</legend>
+              <label><input id="cannotAnswerCriticalQuestions" type="checkbox" /> Cannot answer critical questions</label>
+              <label><input id="userUncertainOnSafetyQuestions" type="checkbox" /> Uncertain on safety questions</label>
+              <label>
+                Inconsistency level
+                <select id="inconsistencyLevel">
+                  <option value="NONE">NONE</option>
+                  <option value="MINOR">MINOR</option>
+                  <option value="MAJOR">MAJOR</option>
+                </select>
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Audit (Optional)</legend>
+              <label><input id="auditEnabled" type="checkbox" /> Write audit event JSONL on server</label>
+              <label><input id="auditIncludeInput" type="checkbox" /> Include full input snapshot in audit event</label>
+              <label>
+                Audit source
+                <input id="auditSource" type="text" value="postpartum-web-ui" />
+              </label>
+              <label>
+                Run ID (optional)
+                <input id="auditRunId" type="text" placeholder="e.g. pilot-001" />
+              </label>
+              <p class="hint">Default log path on server: <code>logs/postpartum-web.jsonl</code></p>
+            </fieldset>
+          </div>
+
+          <div class="submit-row">
+            <button class="submit" type="submit">Run Triage</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel panel-result">
+        <h2>Result</h2>
+        <div id="status" class="status">No result yet.</div>
+        <div id="result-block" class="result-block hidden">
+          <div class="result-main">
+            <p class="label">Urgency Level</p>
+            <p id="level" class="level"></p>
+            <p id="summary" class="summary"></p>
+          </div>
+          <div class="result-grid">
+            <article>
+              <h3>Action Plan</h3>
+              <p><strong>Route:</strong> <span id="route"></span></p>
+              <p><strong>Timeframe:</strong> <span id="timeframe"></span></p>
+              <p><strong>Emergency #:</strong> <span id="emergencyNumber"></span></p>
+              <h4>Instructions</h4>
+              <ul id="instructions"></ul>
+              <h4>Recommended Contacts</h4>
+              <ul id="contacts"></ul>
+            </article>
+            <article>
+              <h3>Decision Trace</h3>
+              <p><strong>Score:</strong> <span id="score"></span></p>
+              <p><strong>Confidence:</strong> <span id="confidence"></span></p>
+              <p><strong>Uncertainty:</strong> <span id="uncertainty"></span></p>
+              <h4>Rationale</h4>
+              <ul id="rationale"></ul>
+              <h4>Fired Red Flags</h4>
+              <ul id="redFlags"></ul>
+            </article>
+          </div>
+          <details>
+            <summary>Raw JSON</summary>
+            <pre id="rawJson"></pre>
+          </details>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

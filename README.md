@@ -28,6 +28,7 @@ Postpartum (Germany scope):
 npm run postpartum -- --input test/postpartum-vignettes/04_urgent_mental_health_high_score.json
 npm run postpartum:test
 npm run postpartum:example
+npm run postpartum:web
 ```
 
 Postpartum with audit log:
@@ -35,6 +36,9 @@ Postpartum with audit log:
 ```bash
 npm run postpartum -- --input test/postpartum-vignettes/04_urgent_mental_health_high_score.json --audit-log logs/postpartum-audit.jsonl --source local-dev --run-id run-001
 ```
+
+Web UI:
+- Open `http://localhost:4173` after `npm run postpartum:web`
 
 Cardiovascular module:
 

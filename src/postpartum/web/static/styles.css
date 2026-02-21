@@ -1,0 +1,252 @@
+:root {
+  --bg-a: #f4f7ff;
+  --bg-b: #fef6eb;
+  --ink: #152238;
+  --muted: #576175;
+  --line: #d8dfef;
+  --brand: #0066cc;
+  --ok: #117a4f;
+  --warn: #9b6500;
+  --danger: #b41f2f;
+  --card: #ffffffd6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 15% 10%, #d5e7ff 0%, transparent 40%),
+    radial-gradient(circle at 85% 0%, #ffe7c4 0%, transparent 38%),
+    linear-gradient(160deg, var(--bg-a), var(--bg-b));
+  min-height: 100vh;
+}
+
+.page {
+  width: min(1120px, 94vw);
+  margin: 2rem auto 3rem;
+  display: grid;
+  gap: 1.2rem;
+}
+
+.hero {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1.4rem 1.5rem;
+  backdrop-filter: blur(8px);
+}
+
+.hero h1 {
+  margin: 0.2rem 0 0.6rem;
+  font-family: "Space Grotesk", sans-serif;
+  line-height: 1.05;
+  font-size: clamp(1.4rem, 2.2vw, 2rem);
+}
+
+.hero p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.76rem;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1rem 1rem 1.2rem;
+}
+
+.panel h2,
+.panel h3,
+.panel h4 {
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 0.45rem 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #b7c4e0;
+}
+
+.submit {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+}
+
+.grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+}
+
+fieldset {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.8rem 0.85rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+legend {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.92rem;
+  padding: 0 0.3rem;
+  color: #1c335e;
+}
+
+label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  align-items: center;
+  font-size: 0.92rem;
+}
+
+label > input[type="text"],
+label > input[type="number"],
+label > select {
+  grid-column: 1 / -1;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.92rem;
+  font-family: inherit;
+}
+
+input[type="checkbox"] {
+  margin: 0;
+}
+
+.submit-row {
+  margin-top: 0.9rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.status {
+  margin: 0 0 0.8rem;
+  color: var(--muted);
+}
+
+.result-block {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.result-main {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.8rem 0.9rem;
+}
+
+.label {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.level {
+  margin: 0.2rem 0 0.3rem;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.3rem;
+}
+
+.summary {
+  margin: 0;
+  color: var(--muted);
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.8rem;
+}
+
+.result-grid article {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+}
+
+ul {
+  margin: 0.35rem 0 0.2rem;
+  padding-left: 1.1rem;
+}
+
+pre {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.7rem;
+  background: #f8fbff;
+  font-size: 0.82rem;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.hidden {
+  display: none;
+}
+
+.level-emergency {
+  color: var(--danger);
+}
+
+.level-urgent {
+  color: var(--warn);
+}
+
+.level-routine {
+  color: var(--ok);
+}
+
+@media (max-width: 700px) {
+  .panel-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

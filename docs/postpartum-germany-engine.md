@@ -29,6 +29,18 @@ Run one case:
 npm run postpartum -- --input test/postpartum-vignettes/04_urgent_mental_health_high_score.json
 ```
 
+Run local web UI:
+
+```bash
+npm run postpartum:web
+```
+
+Then open:
+
+```text
+http://localhost:4173
+```
+
 Run one case and write pilot audit event (JSONL):
 
 ```bash
@@ -53,6 +65,8 @@ npm run postpartum:example
 - Evaluator: `src/postpartum/evaluator.ts`
 - Types: `src/postpartum/types.ts`
 - CLI: `src/postpartum/cli.ts`
+- Web server: `src/postpartum/web/server.ts`
+- Web UI: `src/postpartum/web/static/*`
 - Vignette runner: `src/postpartum/run-vignettes.ts`
 - English copy pack: `src/postpartum/copy/en.ts`
 - Audit logging: `src/postpartum/audit.ts`
