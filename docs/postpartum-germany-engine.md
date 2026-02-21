@@ -52,4 +52,5 @@ npm run postpartum:example
 ## Notes
 
 - v1 is deterministic (rule-based), with conservative uncertainty escalation.
+- every result now includes a structured `actionPlan` with Germany-specific routing.
 - This is triage support logic, not diagnosis or treatment advice.

@@ -14,6 +14,8 @@ interface Vignette {
     scoreTotalMin?: number;
     scoreTotalMax?: number;
     expectedEmergencyNumber?: string;
+    expectedPrimaryRoute?: string;
+    expectedTimeframe?: "NOW" | "TODAY" | "WITHIN_7_DAYS";
   };
 }
 
@@ -89,6 +91,24 @@ function validate(
   ) {
     errors.push(
       `expected emergencyNumber=${expected.expectedEmergencyNumber}, got ${result.emergencyNumber}`
+    );
+  }
+
+  if (
+    expected.expectedPrimaryRoute !== undefined &&
+    result.actionPlan.primaryRoute !== expected.expectedPrimaryRoute
+  ) {
+    errors.push(
+      `expected actionPlan.primaryRoute=${expected.expectedPrimaryRoute}, got ${result.actionPlan.primaryRoute}`
+    );
+  }
+
+  if (
+    expected.expectedTimeframe !== undefined &&
+    result.actionPlan.timeframe !== expected.expectedTimeframe
+  ) {
+    errors.push(
+      `expected actionPlan.timeframe=${expected.expectedTimeframe}, got ${result.actionPlan.timeframe}`
     );
   }
 

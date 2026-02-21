@@ -17,6 +17,8 @@
     "requiredRedFlags": [
       "PP_RF002"
     ],
-    "expectedEmergencyNumber": "112"
+    "expectedEmergencyNumber": "112",
+    "expectedPrimaryRoute": "CALL_EMERGENCY_112",
+    "expectedTimeframe": "NOW"
   }
 }

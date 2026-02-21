@@ -25,6 +25,8 @@
     "level": "ROUTINE_FOLLOW_UP",
     "isEmergency": false,
     "scoreTotalMax": 3,
-    "expectedEmergencyNumber": "112"
+    "expectedEmergencyNumber": "112",
+    "expectedPrimaryRoute": "ROUTINE_POSTPARTUM_FOLLOWUP",
+    "expectedTimeframe": "WITHIN_7_DAYS"
   }
 }

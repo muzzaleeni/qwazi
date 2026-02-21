@@ -23,6 +23,8 @@
     "level": "EMERGENCY_NOW",
     "isEmergency": true,
     "scoreTotalMin": 7,
-    "expectedEmergencyNumber": "112"
+    "expectedEmergencyNumber": "112",
+    "expectedPrimaryRoute": "CALL_EMERGENCY_112",
+    "expectedTimeframe": "NOW"
   }
 }

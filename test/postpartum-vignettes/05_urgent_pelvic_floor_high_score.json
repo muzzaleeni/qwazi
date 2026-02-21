@@ -33,6 +33,8 @@
     "level": "URGENT_SAME_DAY",
     "isEmergency": false,
     "scoreTotalMin": 7,
-    "expectedEmergencyNumber": "112"
+    "expectedEmergencyNumber": "112",
+    "expectedPrimaryRoute": "SAME_DAY_OBGYN_OR_HAUSARZT",
+    "expectedTimeframe": "TODAY"
   }
 }

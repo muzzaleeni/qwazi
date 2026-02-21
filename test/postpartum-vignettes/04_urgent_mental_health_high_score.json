@@ -27,6 +27,8 @@
     "level": "URGENT_SAME_DAY",
     "isEmergency": false,
     "scoreTotalMin": 7,
-    "expectedEmergencyNumber": "112"
+    "expectedEmergencyNumber": "112",
+    "expectedPrimaryRoute": "SAME_DAY_MENTAL_HEALTH_ASSESSMENT",
+    "expectedTimeframe": "TODAY"
   }
 }

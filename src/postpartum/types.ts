@@ -120,6 +120,20 @@ export interface PostpartumUncertaintyTrace {
   escalatedTo?: PostpartumTriageLevel;
 }
 
+export interface PostpartumActionPlan {
+  level: PostpartumTriageLevel;
+  primaryRoute:
+    | "CALL_EMERGENCY_112"
+    | "SAME_DAY_MENTAL_HEALTH_ASSESSMENT"
+    | "SAME_DAY_OBGYN_OR_HAUSARZT"
+    | "SAME_DAY_MIXED_MENTAL_AND_OBGYN"
+    | "ROUTINE_POSTPARTUM_FOLLOWUP";
+  timeframe: "NOW" | "TODAY" | "WITHIN_7_DAYS";
+  recommendedContacts: string[];
+  instructions: string[];
+  safetyNet: string[];
+}
+
 export interface PostpartumResult {
   level: PostpartumTriageLevel;
   isEmergency: boolean;
@@ -130,4 +144,5 @@ export interface PostpartumResult {
   scoreBreakdown: PostpartumScoreBreakdown;
   confidence: PostpartumConfidenceTrace;
   uncertainty: PostpartumUncertaintyTrace;
+  actionPlan: PostpartumActionPlan;
 }
