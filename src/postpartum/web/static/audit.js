@@ -4,6 +4,12 @@ const limitEl = document.getElementById("limit");
 const queueFilterEl = document.getElementById("queue-filter");
 const refreshBtn = document.getElementById("refresh");
 
+const authActorEl = document.getElementById("auth-actor");
+const authPasscodeEl = document.getElementById("auth-passcode");
+const authLoginBtn = document.getElementById("auth-login");
+const authLogoutBtn = document.getElementById("auth-logout");
+const authStateEl = document.getElementById("auth-state");
+
 const metricComplianceEl = document.getElementById("metric-compliance");
 const metricMedianTimeEl = document.getElementById("metric-median-time");
 const metricEmergencyShareEl = document.getElementById("metric-emergency-share");
@@ -13,6 +19,7 @@ const metricTimeToCloseEl = document.getElementById("metric-time-to-close");
 const metricOpenHighRiskEl = document.getElementById("metric-open-high-risk");
 
 const editorEl = document.getElementById("outcome-editor");
+const editorMetaEl = document.getElementById("editor-meta");
 const outcomeForm = document.getElementById("outcome-form");
 const outcomeCancelBtn = document.getElementById("outcome-cancel");
 
@@ -29,20 +36,30 @@ const fieldNotes = document.getElementById("outcome-notes");
 
 let currentEvents = [];
 let filteredEvents = [];
+let authSession = { authenticated: false, actor: null, expires_at: null };
 
 refreshBtn.addEventListener("click", () => load());
 limitEl.addEventListener("change", () => load());
 queueFilterEl.addEventListener("change", () => applyFilterAndRender());
 outcomeCancelBtn.addEventListener("click", () => hideEditor());
 outcomeForm.addEventListener("submit", onSaveCase);
+authLoginBtn.addEventListener("click", onLogin);
+authLogoutBtn.addEventListener("click", onLogout);
+authActorEl.addEventListener("keydown", onAuthInputKeydown);
+authPasscodeEl.addEventListener("keydown", onAuthInputKeydown);
 
-load().catch((error) => {
-  statusEl.textContent = `Failed to load: ${error.message}`;
+initialize().catch((error) => {
+  statusEl.textContent = `Failed to initialize dashboard: ${error.message}`;
 });
+
+async function initialize() {
+  await refreshSession();
+  await load();
+}
 
 async function load() {
   const limit = normalizeLimit(limitEl.value);
-  statusEl.textContent = "Loading…";
+  statusEl.textContent = "Loading...";
   const response = await fetch(`/api/postpartum/audit/recent?limit=${limit}`);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
@@ -92,7 +109,7 @@ function renderRows(events) {
   rowsEl.innerHTML = "";
   if (events.length === 0) {
     const row = document.createElement("tr");
-    row.innerHTML = "<td colspan=\"14\">No events in this queue.</td>";
+    row.innerHTML = '<td colspan="15">No events in this queue.</td>';
     rowsEl.appendChild(row);
     return;
   }
@@ -106,6 +123,7 @@ function renderRows(events) {
     const status = event.workflow?.status || "NEW";
     const owner = event.workflow?.owner || "-";
     const due = formatDate(event.workflow?.follow_up_due_at);
+    const lastUpdated = formatLastUpdated(event);
 
     row.innerHTML = `
       <td>${formatDate(event.timestamp)}</td>
@@ -119,19 +137,72 @@ function renderRows(events) {
       <td>${escapeHtml(owner)}</td>
       <td>${escapeHtml(due || "-")}</td>
       <td>${escapeHtml(outcomeText)}</td>
+      <td>${escapeHtml(lastUpdated)}</td>
       <td>${escapeHtml(event.source || "")}</td>
       <td>${escapeHtml(event.runId || "")}</td>
-      <td><button type="button" data-event-id="${escapeAttr(event.eventId)}">Update</button></td>
+      <td>${renderActionButtons(event)}</td>
     `;
     rowsEl.appendChild(row);
   });
 
-  rowsEl.querySelectorAll("button[data-event-id]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      const id = event.currentTarget.getAttribute("data-event-id");
-      openEditor(id);
-    });
+  rowsEl.querySelectorAll("button[data-event-id][data-action]").forEach((button) => {
+    button.addEventListener("click", onRowAction);
   });
+}
+
+function renderActionButtons(event) {
+  const status = event.workflow?.status || "NEW";
+  const canEdit = authSession.authenticated;
+  const startDisabled = !canEdit || status === "IN_PROGRESS";
+  const closeDisabled = !canEdit || status === "CLOSED";
+  const updateDisabled = !canEdit;
+
+  return `<div class="table-actions">
+    <button type="button" data-action="mark_in_progress" data-event-id="${escapeAttr(event.eventId)}" ${startDisabled ? "disabled" : ""}>Start</button>
+    <button type="button" data-action="mark_closed" data-event-id="${escapeAttr(event.eventId)}" ${closeDisabled ? "disabled" : ""}>Close</button>
+    <button type="button" data-action="update" data-event-id="${escapeAttr(event.eventId)}" ${updateDisabled ? "disabled" : ""}>Update</button>
+  </div>`;
+}
+
+async function onRowAction(event) {
+  const button = event.currentTarget;
+  const eventId = button.getAttribute("data-event-id");
+  const action = button.getAttribute("data-action");
+  if (!eventId || !action) return;
+
+  if (action === "update") {
+    openEditor(eventId);
+    return;
+  }
+
+  if (action === "mark_in_progress") {
+    await quickWorkflowUpdate(eventId, { status: "IN_PROGRESS" });
+    return;
+  }
+
+  if (action === "mark_closed") {
+    await quickWorkflowUpdate(eventId, { status: "CLOSED" });
+  }
+}
+
+async function quickWorkflowUpdate(eventId, workflowPatch) {
+  const authed = await ensureAuthenticated();
+  if (!authed) return;
+
+  statusEl.textContent = "Updating case status...";
+  const response = await postJson("/api/postpartum/audit/workflow", {
+    eventId,
+    workflow: workflowPatch,
+  });
+
+  if (!response.ok) {
+    statusEl.textContent = response.body?.error || `Status update failed (HTTP ${response.status})`;
+    return;
+  }
+
+  statusEl.textContent = "Case status updated.";
+  hideEditor();
+  await load();
 }
 
 function renderMetrics(events) {
@@ -195,6 +266,10 @@ function renderMetrics(events) {
 function openEditor(eventId) {
   const event = currentEvents.find((item) => item.eventId === eventId);
   if (!event) return;
+  if (!authSession.authenticated) {
+    statusEl.textContent = "Sign in required before editing cases.";
+    return;
+  }
 
   fieldEventId.value = event.eventId;
   fieldStatus.value = event.workflow?.status || "NEW";
@@ -203,15 +278,17 @@ function openEditor(eventId) {
   fieldLastContact.value = toDateTimeLocal(event.workflow?.last_contact_at);
 
   fieldCareSought.value =
-    typeof event.outcome?.care_sought === "boolean"
-      ? String(event.outcome.care_sought)
-      : "";
+    typeof event.outcome?.care_sought === "boolean" ? String(event.outcome.care_sought) : "";
   fieldCareTime.value =
     typeof event.outcome?.care_time === "number" ? String(event.outcome.care_time) : "";
   fieldCareType.value = event.outcome?.care_type || "";
   fieldResolved.value =
     typeof event.outcome?.resolved === "boolean" ? String(event.outcome.resolved) : "";
   fieldNotes.value = event.outcome?.notes || "";
+
+  const actor = event.last_updated_by || event.workflow?.updated_by || event.outcome?.updated_by || "system";
+  const updatedAt = event.last_updated_at || event.workflow?.updated_at || event.outcome?.updated_at || event.timestamp;
+  editorMetaEl.textContent = `Last updated by ${actor} at ${formatDate(updatedAt)}.`;
 
   editorEl.classList.remove("hidden");
   editorEl.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -228,6 +305,7 @@ function hideEditor() {
   fieldCareType.value = "";
   fieldResolved.value = "";
   fieldNotes.value = "";
+  editorMetaEl.textContent = "";
   editorEl.classList.add("hidden");
 }
 
@@ -236,16 +314,19 @@ async function onSaveCase(event) {
   const eventId = fieldEventId.value.trim();
   if (!eventId) return;
 
+  const authed = await ensureAuthenticated();
+  if (!authed) return;
+
   statusEl.textContent = "Saving case update...";
 
   const outcomePayload = {
     eventId,
     outcome: {
       care_sought: parseTriState(fieldCareSought.value),
-      care_time: parseOptionalNumber(fieldCareTime.value),
-      care_type: fieldCareType.value || undefined,
+      care_time: parseOptionalNumberOrNull(fieldCareTime.value),
+      care_type: parseOptionalStringOrNull(fieldCareType.value),
       resolved: parseTriState(fieldResolved.value),
-      notes: fieldNotes.value.trim() || undefined,
+      notes: parseOptionalStringOrNull(fieldNotes.value),
     },
   };
 
@@ -253,37 +334,138 @@ async function onSaveCase(event) {
     eventId,
     workflow: {
       status: fieldStatus.value || "NEW",
-      owner: parseOptionalString(fieldOwner.value),
-      follow_up_due_at: parseDateTimeLocal(fieldFollowUpDue.value),
-      last_contact_at: parseDateTimeLocal(fieldLastContact.value),
+      owner: parseOptionalStringOrNull(fieldOwner.value),
+      follow_up_due_at: parseDateTimeLocalOrNull(fieldFollowUpDue.value),
+      last_contact_at: parseDateTimeLocalOrNull(fieldLastContact.value),
     },
   };
 
-  const outcomeResp = await fetch("/api/postpartum/audit/outcome", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(outcomePayload),
-  });
+  const outcomeResp = await postJson("/api/postpartum/audit/outcome", outcomePayload);
   if (!outcomeResp.ok) {
-    const body = await safeJson(outcomeResp);
-    statusEl.textContent = body?.error || `Save failed (HTTP ${outcomeResp.status})`;
+    statusEl.textContent = outcomeResp.body?.error || `Save failed (HTTP ${outcomeResp.status})`;
     return;
   }
 
-  const workflowResp = await fetch("/api/postpartum/audit/workflow", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(workflowPayload),
-  });
+  const workflowResp = await postJson("/api/postpartum/audit/workflow", workflowPayload);
   if (!workflowResp.ok) {
-    const body = await safeJson(workflowResp);
-    statusEl.textContent = body?.error || `Workflow save failed (HTTP ${workflowResp.status})`;
+    statusEl.textContent =
+      workflowResp.body?.error || `Workflow save failed (HTTP ${workflowResp.status})`;
     return;
   }
 
   statusEl.textContent = "Case updated.";
   hideEditor();
   await load();
+}
+
+async function refreshSession() {
+  const response = await fetch("/api/postpartum/auth/session");
+  const body = await safeJson(response);
+  if (!response.ok || !body?.authenticated) {
+    authSession = { authenticated: false, actor: null, expires_at: null };
+    renderAuthState();
+    return authSession;
+  }
+
+  authSession = {
+    authenticated: true,
+    actor: typeof body.actor === "string" ? body.actor : "coordinator",
+    expires_at: typeof body.expires_at === "string" ? body.expires_at : null,
+  };
+  renderAuthState();
+  return authSession;
+}
+
+function renderAuthState() {
+  const signedIn = authSession.authenticated;
+  authActorEl.disabled = signedIn;
+  authPasscodeEl.disabled = signedIn;
+  authLoginBtn.classList.toggle("hidden", signedIn);
+  authLogoutBtn.classList.toggle("hidden", !signedIn);
+
+  if (signedIn) {
+    const expiryText = authSession.expires_at ? ` (expires ${formatDate(authSession.expires_at)})` : "";
+    authStateEl.textContent = `Signed in as ${authSession.actor}.${expiryText}`;
+  } else {
+    authStateEl.textContent = "Not signed in. Sign in required for updates.";
+    hideEditor();
+  }
+
+  applyFilterAndRender();
+}
+
+async function onLogin() {
+  const passcode = authPasscodeEl.value.trim();
+  if (!passcode) {
+    authStateEl.textContent = "Passcode is required.";
+    return;
+  }
+
+  authStateEl.textContent = "Signing in...";
+  const payload = {
+    actor: parseOptionalStringOrNull(authActorEl.value),
+    passcode,
+  };
+  const response = await postJson("/api/postpartum/auth/login", payload, {
+    refreshOnUnauthorized: false,
+  });
+
+  if (!response.ok) {
+    authStateEl.textContent = response.body?.error || `Sign-in failed (HTTP ${response.status})`;
+    return;
+  }
+
+  authPasscodeEl.value = "";
+  await refreshSession();
+  statusEl.textContent = `Authenticated as ${authSession.actor}.`;
+}
+
+async function onLogout() {
+  authStateEl.textContent = "Signing out...";
+  await postJson("/api/postpartum/auth/logout", {}, { refreshOnUnauthorized: false });
+  await refreshSession();
+  statusEl.textContent = "Signed out.";
+}
+
+function onAuthInputKeydown(event) {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  onLogin();
+}
+
+async function ensureAuthenticated() {
+  if (authSession.authenticated) return true;
+  await refreshSession();
+  if (authSession.authenticated) return true;
+  statusEl.textContent = "Sign in as coordinator to update cases.";
+  authPasscodeEl.focus();
+  return false;
+}
+
+async function postJson(url, payload, options = {}) {
+  const refreshOnUnauthorized = options.refreshOnUnauthorized !== false;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const body = await safeJson(response);
+  if (response.status === 401 && refreshOnUnauthorized) {
+    await refreshSession();
+  }
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    body,
+  };
+}
+
+function formatLastUpdated(event) {
+  const actor = event.last_updated_by || event.workflow?.updated_by || event.outcome?.updated_by || "system";
+  const updatedAt = event.last_updated_at || event.workflow?.updated_at || event.outcome?.updated_at || event.timestamp;
+  return `${actor} @ ${formatDate(updatedAt)}`;
 }
 
 function isOverdue(event, now) {
@@ -302,17 +484,18 @@ function parseDate(value) {
 function parseTriState(value) {
   if (value === "true") return true;
   if (value === "false") return false;
-  return undefined;
+  return null;
 }
 
-function parseOptionalNumber(value) {
+function parseOptionalNumberOrNull(value) {
   const trimmed = String(value || "").trim();
-  if (!trimmed) return undefined;
+  if (!trimmed) return null;
   const parsed = Number.parseFloat(trimmed);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
 }
 
-function parseDateTimeLocal(value) {
+function parseDateTimeLocalOrNull(value) {
   const trimmed = String(value || "").trim();
   if (!trimmed) return null;
   const date = new Date(trimmed);
@@ -320,7 +503,7 @@ function parseDateTimeLocal(value) {
   return date.toISOString();
 }
 
-function parseOptionalString(value) {
+function parseOptionalStringOrNull(value) {
   const trimmed = String(value || "").trim();
   if (!trimmed) return null;
   return trimmed;

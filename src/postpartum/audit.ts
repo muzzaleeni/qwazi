@@ -37,6 +37,8 @@ export interface PostpartumAuditEvent {
   inputSnapshot?: PostpartumInput;
   outcome?: PostpartumAuditOutcome;
   workflow: PostpartumCaseWorkflow;
+  last_updated_by?: string;
+  last_updated_at?: string;
 }
 
 export interface PostpartumAuditOutcome {
@@ -46,6 +48,7 @@ export interface PostpartumAuditOutcome {
   resolved?: boolean;
   notes?: string;
   updated_at: string;
+  updated_by?: string;
 }
 
 export type PostpartumCaseStatus = "NEW" | "IN_PROGRESS" | "WAITING" | "CLOSED";
@@ -56,6 +59,35 @@ export interface PostpartumCaseWorkflow {
   follow_up_due_at?: string;
   last_contact_at?: string;
   updated_at: string;
+  updated_by?: string;
+}
+
+export interface PostpartumAuditUpdateResult {
+  before: PostpartumAuditEvent;
+  after: PostpartumAuditEvent;
+}
+
+export type PostpartumAuditChangeType = "OUTCOME_UPDATE" | "WORKFLOW_UPDATE";
+
+export interface PostpartumAuditChangeEvent {
+  changeId: string;
+  eventId: string;
+  timestamp: string;
+  editor: string;
+  changeType: PostpartumAuditChangeType;
+  patch: Record<string, unknown>;
+  before: {
+    outcome?: PostpartumAuditOutcome;
+    workflow: PostpartumCaseWorkflow;
+    last_updated_by?: string;
+    last_updated_at?: string;
+  };
+  after: {
+    outcome?: PostpartumAuditOutcome;
+    workflow: PostpartumCaseWorkflow;
+    last_updated_by?: string;
+    last_updated_at?: string;
+  };
 }
 
 export function createPostpartumAuditEvent(
@@ -107,6 +139,15 @@ export function appendAuditEventJsonl(pathToJsonl: string, event: PostpartumAudi
   appendFileSync(absolutePath, `${JSON.stringify(event)}\n`, "utf8");
 }
 
+export function appendAuditChangeEventJsonl(
+  pathToJsonl: string,
+  event: PostpartumAuditChangeEvent
+): void {
+  const absolutePath = resolve(pathToJsonl);
+  mkdirSync(dirname(absolutePath), { recursive: true });
+  appendFileSync(absolutePath, `${JSON.stringify(event)}\n`, "utf8");
+}
+
 export function readAuditEventsJsonl(pathToJsonl: string, limit = 50): PostpartumAuditEvent[] {
   const parsed = readAllAuditEventsJsonl(pathToJsonl);
   const boundedLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 50;
@@ -139,68 +180,134 @@ export function readAllAuditEventsJsonl(pathToJsonl: string): PostpartumAuditEve
 export function updateAuditEventOutcome(
   pathToJsonl: string,
   eventId: string,
-  outcomePatch: Partial<Omit<PostpartumAuditOutcome, "updated_at">>
-): PostpartumAuditEvent | null {
+  outcomePatch: Partial<Omit<PostpartumAuditOutcome, "updated_at" | "updated_by">>,
+  editor: string
+): PostpartumAuditUpdateResult | null {
   const absolutePath = resolve(pathToJsonl);
   const events = readAllAuditEventsJsonl(absolutePath);
   if (events.length === 0) return null;
 
-  let updated: PostpartumAuditEvent | null = null;
+  let result: PostpartumAuditUpdateResult | null = null;
+  const now = new Date().toISOString();
   const next = events.map((event) => {
     if (event.eventId !== eventId) return event;
+    const before = normalizeWorkflow(event);
     const outcome: PostpartumAuditOutcome = {
-      ...event.outcome,
+      ...before.outcome,
       ...outcomePatch,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
+      updated_by: editor,
     };
-    updated = normalizeWorkflow({ ...event, outcome });
-    return updated;
+    const after = normalizeWorkflow({
+      ...before,
+      outcome,
+      last_updated_by: editor,
+      last_updated_at: now,
+    });
+    result = { before, after };
+    return after;
   });
 
-  if (!updated) return null;
+  if (!result) return null;
 
   mkdirSync(dirname(absolutePath), { recursive: true });
   const body = `${next.map((item) => JSON.stringify(item)).join("\n")}\n`;
   writeFileSync(absolutePath, body, "utf8");
-  return updated;
+  return result;
 }
 
 export function updateAuditEventWorkflow(
   pathToJsonl: string,
   eventId: string,
-  workflowPatch: Partial<Omit<PostpartumCaseWorkflow, "updated_at">>
-): PostpartumAuditEvent | null {
+  workflowPatch: Partial<Omit<PostpartumCaseWorkflow, "updated_at" | "updated_by">>,
+  editor: string
+): PostpartumAuditUpdateResult | null {
   const absolutePath = resolve(pathToJsonl);
   const events = readAllAuditEventsJsonl(absolutePath);
   if (events.length === 0) return null;
 
-  let updated: PostpartumAuditEvent | null = null;
+  let result: PostpartumAuditUpdateResult | null = null;
+  const now = new Date().toISOString();
   const next = events.map((event) => {
     if (event.eventId !== eventId) return event;
+    const before = normalizeWorkflow(event);
     const workflow: PostpartumCaseWorkflow = {
-      ...event.workflow,
+      ...before.workflow,
       ...workflowPatch,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
+      updated_by: editor,
     };
-    updated = normalizeWorkflow({ ...event, workflow });
-    return updated;
+    const after = normalizeWorkflow({
+      ...before,
+      workflow,
+      last_updated_by: editor,
+      last_updated_at: now,
+    });
+    result = { before, after };
+    return after;
   });
 
-  if (!updated) return null;
+  if (!result) return null;
 
   mkdirSync(dirname(absolutePath), { recursive: true });
   const body = `${next.map((item) => JSON.stringify(item)).join("\n")}\n`;
   writeFileSync(absolutePath, body, "utf8");
-  return updated;
+  return result;
+}
+
+export function createAuditChangeEvent(
+  changeType: PostpartumAuditChangeType,
+  editor: string,
+  patch: Record<string, unknown>,
+  update: PostpartumAuditUpdateResult
+): PostpartumAuditChangeEvent {
+  return {
+    changeId: randomUUID(),
+    eventId: update.after.eventId,
+    timestamp: new Date().toISOString(),
+    editor,
+    changeType,
+    patch,
+    before: {
+      outcome: update.before.outcome,
+      workflow: update.before.workflow,
+      last_updated_by: update.before.last_updated_by,
+      last_updated_at: update.before.last_updated_at,
+    },
+    after: {
+      outcome: update.after.outcome,
+      workflow: update.after.workflow,
+      last_updated_by: update.after.last_updated_by,
+      last_updated_at: update.after.last_updated_at,
+    },
+  };
 }
 
 function normalizeWorkflow(event: PostpartumAuditEvent): PostpartumAuditEvent {
-  if (event.workflow) return event;
+  const normalizedOutcome = event.outcome
+    ? {
+        ...event.outcome,
+        updated_by: event.outcome.updated_by ?? event.last_updated_by ?? "system",
+      }
+    : undefined;
+
+  if (event.workflow) {
+    return {
+      ...event,
+      outcome: normalizedOutcome,
+      workflow: {
+        ...event.workflow,
+        updated_by: event.workflow.updated_by ?? event.last_updated_by ?? "system",
+      },
+    };
+  }
   return {
     ...event,
+    outcome: normalizedOutcome,
     workflow: {
       status: event.outcome?.resolved === true ? "CLOSED" : "NEW",
       updated_at: event.timestamp,
+      updated_by: "system",
     },
   };
 }

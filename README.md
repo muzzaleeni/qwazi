@@ -41,8 +41,13 @@ Web UI:
 - Open `http://localhost:4173` after `npm run postpartum:web`
 - Triage history dashboard: `http://localhost:4173/audit.html`
 - Recent history API: `GET /api/postpartum/audit/recent?limit=50`
-- Outcome update API: `POST /api/postpartum/audit/outcome` with `{ eventId, outcome }`
-- Workflow update API: `POST /api/postpartum/audit/workflow` with `{ eventId, workflow }`
+- Auth session API: `GET /api/postpartum/auth/session`
+- Auth login API: `POST /api/postpartum/auth/login` with `{ actor?, passcode }`
+- Auth logout API: `POST /api/postpartum/auth/logout`
+- Outcome update API: `POST /api/postpartum/audit/outcome` with `{ eventId, outcome }` (auth required)
+- Workflow update API: `POST /api/postpartum/audit/workflow` with `{ eventId, workflow }` (auth required)
+- Coordinator passcode env var: `COORDINATOR_PASSCODE` (default: `qwazi-local`)
+- Change trail file: `logs/postpartum-change-history.jsonl`
 
 Cardiovascular module:
 

@@ -22,6 +22,14 @@
       </header>
 
       <section class="panel">
+        <div class="auth-controls">
+          <input id="auth-actor" type="text" placeholder="Actor (e.g. coordinator-a)" />
+          <input id="auth-passcode" type="password" placeholder="Coordinator passcode" />
+          <button id="auth-login" type="button">Sign in</button>
+          <button id="auth-logout" type="button" class="hidden">Sign out</button>
+          <span id="auth-state" class="status">Checking session…</span>
+        </div>
+
         <div class="dashboard-toolbar">
           <label>
             Queue
@@ -86,13 +94,14 @@
                 <th>Owner</th>
                 <th>Follow-up Due</th>
                 <th>Outcome</th>
+                <th>Last Updated</th>
                 <th>Source</th>
                 <th>Run ID</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="rows">
-              <tr><td colspan="14">No data.</td></tr>
+              <tr><td colspan="15">No data.</td></tr>
             </tbody>
           </table>
         </div>
@@ -100,6 +109,7 @@
         <section class="outcome-editor hidden" id="outcome-editor">
           <h3>Update Case</h3>
           <p class="hint">This updates outcome and workflow fields in persistent history.</p>
+          <p class="hint" id="editor-meta"></p>
           <form id="outcome-form">
             <input id="outcome-event-id" type="hidden" />
             <div class="outcome-grid">

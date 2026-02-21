@@ -85,10 +85,17 @@ npm run postpartum:example
 - CLI supports JSONL pilot audit logs via `--audit-log` (with optional `--include-input`).
 - Web evaluation calls are persisted automatically to `logs/postpartum-history.jsonl`.
 - Recent history endpoint: `GET /api/postpartum/audit/recent?limit=50`.
-- Outcome update endpoint: `POST /api/postpartum/audit/outcome`.
-- Workflow update endpoint: `POST /api/postpartum/audit/workflow`.
+- Auth session endpoint: `GET /api/postpartum/auth/session`.
+- Auth login endpoint: `POST /api/postpartum/auth/login` with `{ actor?, passcode }`.
+- Auth logout endpoint: `POST /api/postpartum/auth/logout`.
+- Outcome update endpoint: `POST /api/postpartum/audit/outcome` (auth required).
+- Workflow update endpoint: `POST /api/postpartum/audit/workflow` (auth required).
+- Coordinator passcode comes from env var `COORDINATOR_PASSCODE` (defaults to `qwazi-local` for local dev).
+- Immutable coordinator change trail appends to `logs/postpartum-change-history.jsonl`.
 - Dashboard supports editing `care_sought`, `care_time`, `care_type`, `resolved`, and `notes`.
 - Coordinator workflow fields: `status`, `owner`, `follow_up_due_at`, `last_contact_at`.
 - Queue views: `Needs follow-up today`, `Overdue`, `Closed`.
 - Weekly ops metrics added: `% overdue`, `median time to close`, `open high-risk cases`.
+- Dashboard row quick actions: `Start` (IN_PROGRESS) and `Close` (CLOSED).
+- Dashboard shows case `last updated by` and timestamp for coordinator handoffs.
 - This is triage support logic, not diagnosis or treatment advice.

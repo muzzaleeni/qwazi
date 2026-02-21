@@ -254,6 +254,24 @@ pre {
   margin-bottom: 0.8rem;
 }
 
+.auth-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.8rem;
+}
+
+.auth-controls input {
+  width: 220px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: #fff;
+}
+
 .dashboard-toolbar input {
   width: 90px;
   border: 1px solid var(--line);
@@ -330,6 +348,17 @@ th {
 
 tbody tr:hover {
   background: #f9fbff;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.table-actions button {
+  padding: 0.3rem 0.45rem;
+  font-size: 0.78rem;
 }
 
 .outcome-editor {
