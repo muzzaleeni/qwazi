@@ -1,0 +1,22 @@
+{
+  "id": "V008",
+  "description": "Emergency when user states symptoms feel life-threatening now.",
+  "input": {
+    "ageBand": "18-39",
+    "chestDiscomfortSeverity": "NONE",
+    "shortnessOfBreath": false,
+    "syncope": false,
+    "lightheadedOrNearSyncope": false,
+    "progression": "STABLE",
+    "onsetMinutesAgo": 5,
+    "symptomDurationMinutes": 5,
+    "symptomsFeelLifeThreateningNow": true
+  },
+  "expected": {
+    "level": "EMERGENCY_NOW",
+    "isEmergency": true,
+    "requiredRedFlags": [
+      "RF007"
+    ]
+  }
+}

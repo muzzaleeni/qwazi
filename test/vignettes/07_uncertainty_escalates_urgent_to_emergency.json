@@ -1,0 +1,21 @@
+{
+  "id": "V007",
+  "description": "Low confidence escalates a high-score urgent case to emergency.",
+  "input": {
+    "ageBand": "65+",
+    "chestDiscomfortSeverity": "MODERATE",
+    "shortnessOfBreath": true,
+    "jawNeckBackShoulderArmDiscomfort": true,
+    "symptomDurationMinutes": 25,
+    "hypertension": true,
+    "diabetes": true,
+    "cannotCharacterizeSeverityOrDuration": true,
+    "inconsistencyLevel": "MAJOR",
+    "userUncertainOnKeyItems": true
+  },
+  "expected": {
+    "level": "EMERGENCY_NOW",
+    "isEmergency": true,
+    "scoreTotalMin": 8
+  }
+}

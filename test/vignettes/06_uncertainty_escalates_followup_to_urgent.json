@@ -1,0 +1,16 @@
+{
+  "id": "V006",
+  "description": "Uncertainty escalation raises a low-score case from 72h to urgent same-day.",
+  "input": {
+    "ageBand": "40-54",
+    "chestDiscomfortSeverity": "NONE",
+    "cannotCharacterizeSeverityOrDuration": true,
+    "inconsistencyLevel": "MAJOR",
+    "userUncertainOnKeyItems": true
+  },
+  "expected": {
+    "level": "URGENT_SAME_DAY",
+    "isEmergency": false,
+    "scoreTotalMax": 3
+  }
+}

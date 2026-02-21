@@ -1,0 +1,41 @@
+{
+  "id": "V004",
+  "description": "Urgent same-day for high score without emergency red flags.",
+  "input": {
+    "ageBand": "55-64",
+    "chestDiscomfortSeverity": "MODERATE",
+    "chestDiscomfortDurationMinutes": 12,
+    "shortnessOfBreath": true,
+    "shortnessOfBreathAtRest": false,
+    "jawNeckBackShoulderArmDiscomfort": true,
+    "nauseaOrVomiting": false,
+    "coldSweat": true,
+    "lightheadedOrNearSyncope": false,
+    "syncope": false,
+    "palpitations": false,
+    "unusualSevereFatigue": true,
+    "neurologicSymptoms": false,
+    "progression": "WORSENING",
+    "symptomDurationMinutes": 30,
+    "onsetMinutesAgo": 40,
+    "rapidlyWorseningDuringSession": false,
+    "symptomsFeelLifeThreateningNow": false,
+    "priorCardiovascularDisease": false,
+    "hypertension": true,
+    "diabetes": true,
+    "highCholesterol": true,
+    "currentOrRecentSmoking": false,
+    "familyHistoryPrematureCVD": true,
+    "pregnancyHypertensiveDisorderOrGDMHistory": true,
+    "earlyMenopauseBefore45": false,
+    "autoimmuneDisease": false,
+    "migraineWithAura": false,
+    "inconsistencyLevel": "NONE",
+    "userUncertainOnKeyItems": false
+  },
+  "expected": {
+    "level": "URGENT_SAME_DAY",
+    "isEmergency": false,
+    "scoreTotalMin": 8
+  }
+}

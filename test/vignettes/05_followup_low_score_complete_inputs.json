@@ -1,0 +1,31 @@
+{
+  "id": "V005",
+  "description": "Book within 72h for low score when critical inputs are complete.",
+  "input": {
+    "ageBand": "18-39",
+    "chestDiscomfortSeverity": "NONE",
+    "shortnessOfBreath": false,
+    "syncope": false,
+    "lightheadedOrNearSyncope": false,
+    "palpitations": true,
+    "progression": "STABLE",
+    "onsetMinutesAgo": 120,
+    "symptomDurationMinutes": 15,
+    "hypertension": false,
+    "diabetes": false,
+    "highCholesterol": false,
+    "currentOrRecentSmoking": false,
+    "familyHistoryPrematureCVD": false,
+    "pregnancyHypertensiveDisorderOrGDMHistory": false,
+    "earlyMenopauseBefore45": false,
+    "autoimmuneDisease": false,
+    "migraineWithAura": false,
+    "inconsistencyLevel": "NONE",
+    "userUncertainOnKeyItems": false
+  },
+  "expected": {
+    "level": "BOOK_WITHIN_72H",
+    "isEmergency": false,
+    "scoreTotalMax": 3
+  }
+}

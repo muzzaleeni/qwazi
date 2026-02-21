@@ -1,0 +1,15 @@
+{
+  "name": "qwazi",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "triage": "tsx src/triage/cli.ts",
+    "triage:test": "tsx src/triage/run-vignettes.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.4.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

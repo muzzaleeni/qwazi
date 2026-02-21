@@ -1,0 +1,26 @@
+{
+  "id": "V001",
+  "description": "Emergency when severe chest discomfort lasts at least 10 minutes.",
+  "input": {
+    "ageBand": "40-54",
+    "chestDiscomfortSeverity": "SEVERE",
+    "chestDiscomfortDurationMinutes": 15,
+    "shortnessOfBreath": false,
+    "shortnessOfBreathAtRest": false,
+    "syncope": false,
+    "lightheadedOrNearSyncope": false,
+    "nauseaOrVomiting": false,
+    "coldSweat": false,
+    "neurologicSymptoms": false,
+    "progression": "STABLE",
+    "onsetMinutesAgo": 20,
+    "symptomDurationMinutes": 15
+  },
+  "expected": {
+    "level": "EMERGENCY_NOW",
+    "isEmergency": true,
+    "requiredRedFlags": [
+      "RF001"
+    ]
+  }
+}

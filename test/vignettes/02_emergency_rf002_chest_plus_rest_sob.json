@@ -1,0 +1,26 @@
+{
+  "id": "V002",
+  "description": "Emergency when chest discomfort occurs with shortness of breath at rest.",
+  "input": {
+    "ageBand": "55-64",
+    "chestDiscomfortSeverity": "MODERATE",
+    "chestDiscomfortDurationMinutes": 5,
+    "shortnessOfBreath": true,
+    "shortnessOfBreathAtRest": true,
+    "syncope": false,
+    "lightheadedOrNearSyncope": false,
+    "nauseaOrVomiting": false,
+    "coldSweat": false,
+    "neurologicSymptoms": false,
+    "progression": "STABLE",
+    "onsetMinutesAgo": 12,
+    "symptomDurationMinutes": 8
+  },
+  "expected": {
+    "level": "EMERGENCY_NOW",
+    "isEmergency": true,
+    "requiredRedFlags": [
+      "RF002"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "V003",
+  "description": "Emergency on new neurologic signs, even without chest pain.",
+  "input": {
+    "ageBand": "65+",
+    "chestDiscomfortSeverity": "NONE",
+    "shortnessOfBreath": false,
+    "syncope": false,
+    "lightheadedOrNearSyncope": false,
+    "neurologicSymptoms": true,
+    "progression": "WORSENING",
+    "onsetMinutesAgo": 6,
+    "symptomDurationMinutes": 6
+  },
+  "expected": {
+    "level": "EMERGENCY_NOW",
+    "isEmergency": true,
+    "requiredRedFlags": [
+      "RF005"
+    ]
+  }
+}
