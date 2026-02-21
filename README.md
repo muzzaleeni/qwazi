@@ -44,13 +44,18 @@ Web UI:
 - Recent history API: `GET /api/postpartum/audit/recent?limit=50`
 - Change history API: `GET /api/postpartum/audit/changes?limit=50` (auth required)
 - Auth session API: `GET /api/postpartum/auth/session`
-- Auth login API: `POST /api/postpartum/auth/login` with `{ actor?, passcode }`
+- Auth login API: `POST /api/postpartum/auth/login` with `{ username, password }`
 - Auth logout API: `POST /api/postpartum/auth/logout`
+- Admin users list API: `GET /api/postpartum/admin/users` (admin only)
+- Admin create user API: `POST /api/postpartum/admin/users` with `{ username, password, role, display_name? }` (admin only)
 - Outcome update API: `POST /api/postpartum/audit/outcome` with `{ eventId, outcome }` (auth required)
 - Workflow update API: `POST /api/postpartum/audit/workflow` with `{ eventId, workflow }` (auth required)
-- Coordinator passcode env var: `COORDINATOR_PASSCODE` (default: `qwazi-local`)
 - SQLite DB file: `POSTPARTUM_DB_PATH` (default: `logs/postpartum.sqlite`)
+- Bootstrap admin env vars: `COORDINATOR_ADMIN_USERNAME` (default `admin`), `COORDINATOR_ADMIN_PASSWORD` (default `qwazi-local` for local dev)
+- Optional default coordinator env vars: `COORDINATOR_DEFAULT_USERNAME`, `COORDINATOR_DEFAULT_PASSWORD`, `COORDINATOR_DEFAULT_DISPLAY_NAME`
+- Login hardening env vars: `AUTH_MAX_FAILED_ATTEMPTS` (default `5`), `AUTH_COOLDOWN_SECONDS` (default `600`)
 - Legacy JSONL history/change files are auto-imported into SQLite on first run if tables are empty
+- Local default first login: `admin / qwazi-local` (set custom admin password before non-local use)
 
 Cardiovascular module:
 

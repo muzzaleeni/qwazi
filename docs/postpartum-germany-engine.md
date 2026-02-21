@@ -95,11 +95,16 @@ npm run postpartum:example
 - Recent history endpoint: `GET /api/postpartum/audit/recent?limit=50`.
 - Change history endpoint: `GET /api/postpartum/audit/changes?limit=50` (auth required).
 - Auth session endpoint: `GET /api/postpartum/auth/session`.
-- Auth login endpoint: `POST /api/postpartum/auth/login` with `{ actor?, passcode }`.
+- Auth login endpoint: `POST /api/postpartum/auth/login` with `{ username, password }`.
 - Auth logout endpoint: `POST /api/postpartum/auth/logout`.
+- Admin users list endpoint: `GET /api/postpartum/admin/users` (admin only).
+- Admin create user endpoint: `POST /api/postpartum/admin/users` with `{ username, password, role, display_name? }` (admin only).
 - Outcome update endpoint: `POST /api/postpartum/audit/outcome` (auth required).
 - Workflow update endpoint: `POST /api/postpartum/audit/workflow` (auth required).
-- Coordinator passcode comes from env var `COORDINATOR_PASSCODE` (defaults to `qwazi-local` for local dev).
+- Bootstrap admin comes from env vars `COORDINATOR_ADMIN_USERNAME` / `COORDINATOR_ADMIN_PASSWORD`.
+- Optional default coordinator env vars: `COORDINATOR_DEFAULT_USERNAME`, `COORDINATOR_DEFAULT_PASSWORD`, `COORDINATOR_DEFAULT_DISPLAY_NAME`.
+- Login hardening env vars: `AUTH_MAX_FAILED_ATTEMPTS` and `AUTH_COOLDOWN_SECONDS`.
+- Local default first login is `admin / qwazi-local` until overridden by env.
 - Dashboard supports editing `care_sought`, `care_time`, `care_type`, `resolved`, and `notes`.
 - Coordinator workflow fields: `status`, `owner`, `follow_up_due_at`, `last_contact_at`.
 - Queue views: `Needs follow-up today`, `Overdue`, `Closed`.

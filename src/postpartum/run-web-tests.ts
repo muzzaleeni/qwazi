@@ -13,6 +13,10 @@ interface TestContext {
   restartServer: () => Promise<void>;
 }
 
+const ADMIN_USERNAME = "admin";
+const ADMIN_PASSWORD = "qwazi-local";
+const COORDINATOR_PASSWORD = "coord-pass-123";
+
 const VIGNETTE_PATH = resolve(
   process.cwd(),
   "test/postpartum-vignettes/04_urgent_mental_health_high_score.json"
@@ -21,8 +25,10 @@ const VIGNETTE_PATH = resolve(
 const tests: TestCase[] = [
   {
     id: "WEB_T001",
-    description: "Auth gate blocks edits before login and allows after login.",
+    description: "Auth gate blocks edits before login and allows after login with account credentials.",
     run: async (ctx) => {
+      await ensureCoordinatorUser(ctx, "ops-a");
+
       const beforeLoginResp = await ctx.request("/api/postpartum/audit/workflow", {
         method: "POST",
         body: jsonBody({
@@ -34,21 +40,26 @@ const tests: TestCase[] = [
 
       const loginBadResp = await ctx.request("/api/postpartum/auth/login", {
         method: "POST",
-        body: jsonBody({ actor: "ops-a", passcode: "wrong-passcode" }),
+        body: jsonBody({ username: "ops-a", password: "wrong-password" }),
       });
-      assertEqual(loginBadResp.status, 401, "expected 401 for invalid passcode");
+      assertEqual(loginBadResp.status, 401, "expected 401 for invalid credentials");
 
       const loginResp = await ctx.request("/api/postpartum/auth/login", {
         method: "POST",
-        body: jsonBody({ actor: "ops-a", passcode: "qwazi-local" }),
+        body: jsonBody({ username: "ops-a", password: COORDINATOR_PASSWORD }),
       });
       assertEqual(loginResp.status, 200, "expected 200 for valid login");
 
       const sessionResp = await ctx.request("/api/postpartum/auth/session");
       assertEqual(sessionResp.status, 200, "expected 200 for session check");
-      const sessionBody = (await safeJson(sessionResp)) as { authenticated?: boolean; actor?: string };
+      const sessionBody = (await safeJson(sessionResp)) as {
+        authenticated?: boolean;
+        username?: string;
+        role?: string;
+      };
       assertEqual(sessionBody.authenticated, true, "expected authenticated session after login");
-      assertEqual(sessionBody.actor, "ops-a", "expected actor to match login");
+      assertEqual(sessionBody.username, "ops-a", "expected username to match login");
+      assertEqual(sessionBody.role, "COORDINATOR", "expected coordinator role");
 
       const afterLoginResp = await ctx.request("/api/postpartum/audit/workflow", {
         method: "POST",
@@ -79,8 +90,7 @@ const tests: TestCase[] = [
     id: "WEB_T002",
     description: "Validation rejects malformed/unsafe outcome and workflow payloads.",
     run: async (ctx) => {
-      await loginAsCoordinator(ctx);
-
+      await loginAsCoordinator(ctx, "ops-v");
       const eventId = await createEvaluationEvent(ctx);
 
       const badCareTime = await ctx.request("/api/postpartum/audit/outcome", {
@@ -297,6 +307,60 @@ const tests: TestCase[] = [
       assertTruthy(matches.length >= 2, "expected at least two change events for concurrent updates");
     },
   },
+  {
+    id: "WEB_T007",
+    description: "Failed logins are rate-limited with cooldown protection.",
+    run: async (ctx) => {
+      await ensureCoordinatorUser(ctx, "ops-lock");
+      await ctx.request("/api/postpartum/auth/logout", { method: "POST", body: jsonBody({}) });
+
+      const first = await ctx.request("/api/postpartum/auth/login", {
+        method: "POST",
+        body: jsonBody({ username: "ops-lock", password: "bad-1" }),
+      });
+      assertEqual(first.status, 401, "first failed login should be 401");
+
+      const second = await ctx.request("/api/postpartum/auth/login", {
+        method: "POST",
+        body: jsonBody({ username: "ops-lock", password: "bad-2" }),
+      });
+      assertEqual(second.status, 401, "second failed login should be 401");
+
+      const third = await ctx.request("/api/postpartum/auth/login", {
+        method: "POST",
+        body: jsonBody({ username: "ops-lock", password: "bad-3" }),
+      });
+      assertEqual(third.status, 429, "third failed login should trigger cooldown");
+
+      const blocked = await ctx.request("/api/postpartum/auth/login", {
+        method: "POST",
+        body: jsonBody({ username: "ops-lock", password: COORDINATOR_PASSWORD }),
+      });
+      assertEqual(blocked.status, 429, "valid password should still be blocked during cooldown");
+
+      await sleep(2100);
+      const afterCooldown = await ctx.request("/api/postpartum/auth/login", {
+        method: "POST",
+        body: jsonBody({ username: "ops-lock", password: COORDINATOR_PASSWORD }),
+      });
+      assertEqual(afterCooldown.status, 200, "login should succeed after cooldown expires");
+    },
+  },
+  {
+    id: "WEB_T008",
+    description: "Admin endpoints enforce role-based access.",
+    run: async (ctx) => {
+      await loginAsCoordinator(ctx, "ops-role");
+      const denied = await ctx.request("/api/postpartum/admin/users");
+      assertEqual(denied.status, 403, "coordinator should not access admin users endpoint");
+
+      await login(ctx, ADMIN_USERNAME, ADMIN_PASSWORD);
+      const allowed = await ctx.request("/api/postpartum/admin/users");
+      assertEqual(allowed.status, 200, "admin should access admin users endpoint");
+      const body = (await safeJson(allowed)) as { users?: Array<Record<string, unknown>> };
+      assertTruthy(Array.isArray(body.users), "users array should be returned for admin");
+    },
+  },
 ];
 
 async function main() {
@@ -358,8 +422,11 @@ function createHarness(port: number, dbPath: string) {
         env: {
           ...process.env,
           PORT: String(port),
-          COORDINATOR_PASSCODE: "qwazi-local",
           POSTPARTUM_DB_PATH: dbPath,
+          COORDINATOR_ADMIN_USERNAME: ADMIN_USERNAME,
+          COORDINATOR_ADMIN_PASSWORD: ADMIN_PASSWORD,
+          AUTH_MAX_FAILED_ATTEMPTS: "3",
+          AUTH_COOLDOWN_SECONDS: "2",
         },
         stdio: ["ignore", "pipe", "pipe"],
       }
@@ -410,7 +477,7 @@ function createHarness(port: number, dbPath: string) {
   return { start, stop, restart, request };
 }
 
-async function loginAsCoordinator(ctx: TestContext, actor = "ops-a") {
+async function login(ctx: TestContext, username: string, password: string) {
   await ctx.request("/api/postpartum/auth/logout", {
     method: "POST",
     body: jsonBody({}),
@@ -418,9 +485,36 @@ async function loginAsCoordinator(ctx: TestContext, actor = "ops-a") {
 
   const response = await ctx.request("/api/postpartum/auth/login", {
     method: "POST",
-    body: jsonBody({ actor, passcode: "qwazi-local" }),
+    body: jsonBody({ username, password }),
   });
-  assertEqual(response.status, 200, "coordinator login should succeed");
+  assertEqual(response.status, 200, `login should succeed for ${username}`);
+}
+
+async function ensureCoordinatorUser(ctx: TestContext, username: string) {
+  await login(ctx, ADMIN_USERNAME, ADMIN_PASSWORD);
+  const response = await ctx.request("/api/postpartum/admin/users", {
+    method: "POST",
+    body: jsonBody({
+      username,
+      password: COORDINATOR_PASSWORD,
+      role: "COORDINATOR",
+      display_name: username,
+    }),
+  });
+
+  if (response.status !== 201 && response.status !== 409) {
+    throw new Error(`failed to ensure coordinator user ${username}; HTTP ${response.status}`);
+  }
+
+  await ctx.request("/api/postpartum/auth/logout", {
+    method: "POST",
+    body: jsonBody({}),
+  });
+}
+
+async function loginAsCoordinator(ctx: TestContext, username = "ops-a") {
+  await ensureCoordinatorUser(ctx, username);
+  await login(ctx, username, COORDINATOR_PASSWORD);
 }
 
 async function createEvaluationEvent(ctx: TestContext): Promise<string> {

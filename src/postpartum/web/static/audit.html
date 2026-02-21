@@ -17,14 +17,14 @@
       <header class="hero">
         <p class="eyebrow">Germany Workflow / English Locale</p>
         <h1>Postpartum Triage History</h1>
-        <p>Recent persistent triage events from local JSONL history.</p>
+        <p>Recent persistent triage events from local SQLite history.</p>
         <p class="hero-links"><a href="/">Back to Triage Form</a></p>
       </header>
 
       <section class="panel">
         <div class="auth-controls">
-          <input id="auth-actor" type="text" placeholder="Actor (e.g. coordinator-a)" />
-          <input id="auth-passcode" type="password" placeholder="Coordinator passcode" />
+          <input id="auth-username" type="text" placeholder="Username (e.g. coordinator-a)" />
+          <input id="auth-password" type="password" placeholder="Password" />
           <button id="auth-login" type="button">Sign in</button>
           <button id="auth-logout" type="button" class="hidden">Sign out</button>
           <span id="auth-state" class="status">Checking session…</span>

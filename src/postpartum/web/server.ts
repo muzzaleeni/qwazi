@@ -2,12 +2,9 @@ import { readFileSync } from "node:fs";
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { extname, join, resolve } from "node:path";
 import { URL } from "node:url";
-import {
-  appendAuditEventJsonl,
-  createPostpartumAuditEvent,
-} from "../audit";
+import { appendAuditEventJsonl, createPostpartumAuditEvent } from "../audit";
 import { evaluatePostpartumTriage, loadPostpartumRulesFromFile } from "../evaluator";
-import { PostpartumStore } from "../store";
+import { PostpartumStore, PostpartumUserRole } from "../store";
 import { PostpartumInput } from "../types";
 
 const PORT = Number(process.env.PORT ?? 4173);
@@ -20,7 +17,35 @@ const LEGACY_CHANGE_LOG_PATH = resolve(process.cwd(), "logs/postpartum-change-hi
 
 const SESSION_COOKIE_NAME = "pp_session";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
-const COORDINATOR_PASSCODE = process.env.COORDINATOR_PASSCODE ?? "qwazi-local";
+
+const LEGACY_PASSCODE = process.env.COORDINATOR_PASSCODE;
+const DEFAULT_ADMIN_USERNAME = normalizeUsername(
+  process.env.COORDINATOR_ADMIN_USERNAME ?? "admin"
+);
+const DEFAULT_ADMIN_PASSWORD =
+  process.env.COORDINATOR_ADMIN_PASSWORD ?? LEGACY_PASSCODE ?? "qwazi-local";
+const DEFAULT_ADMIN_DISPLAY_NAME =
+  (process.env.COORDINATOR_ADMIN_DISPLAY_NAME ?? "Admin").trim() || "Admin";
+
+const DEFAULT_COORDINATOR_USERNAME = normalizeOptionalUsername(
+  process.env.COORDINATOR_DEFAULT_USERNAME
+);
+const DEFAULT_COORDINATOR_PASSWORD = process.env.COORDINATOR_DEFAULT_PASSWORD;
+const DEFAULT_COORDINATOR_DISPLAY_NAME = normalizeOptionalString(
+  process.env.COORDINATOR_DEFAULT_DISPLAY_NAME
+);
+
+const AUTH_MAX_FAILED_ATTEMPTS = parseEnvPositiveInt(
+  process.env.AUTH_MAX_FAILED_ATTEMPTS,
+  5,
+  20
+);
+const AUTH_COOLDOWN_SECONDS = parseEnvPositiveInt(
+  process.env.AUTH_COOLDOWN_SECONDS,
+  600,
+  86_400
+);
+const AUTH_COOLDOWN_MS = AUTH_COOLDOWN_SECONDS * 1000;
 
 const rules = loadPostpartumRulesFromFile(RULES_PATH);
 const store = new PostpartumStore(DEFAULT_DB_PATH);
@@ -29,6 +54,35 @@ if (migrated.importedEvents > 0 || migrated.importedChanges > 0) {
   process.stdout.write(
     `Migrated legacy JSONL data into SQLite: ${migrated.importedEvents} events, ${migrated.importedChanges} changes.\n`
   );
+}
+
+const adminBootstrap = store.ensureUser(
+  DEFAULT_ADMIN_USERNAME,
+  DEFAULT_ADMIN_PASSWORD,
+  "ADMIN",
+  DEFAULT_ADMIN_DISPLAY_NAME
+);
+if (adminBootstrap.created) {
+  process.stdout.write(`Created bootstrap admin user '${DEFAULT_ADMIN_USERNAME}'.\n`);
+}
+if ((process.env.COORDINATOR_ADMIN_PASSWORD ?? LEGACY_PASSCODE) === undefined) {
+  process.stdout.write(
+    "Using default bootstrap admin password. Set COORDINATOR_ADMIN_PASSWORD for non-local environments.\n"
+  );
+}
+
+if (DEFAULT_COORDINATOR_USERNAME && DEFAULT_COORDINATOR_PASSWORD) {
+  const coordinatorBootstrap = store.ensureUser(
+    DEFAULT_COORDINATOR_USERNAME,
+    DEFAULT_COORDINATOR_PASSWORD,
+    "COORDINATOR",
+    DEFAULT_COORDINATOR_DISPLAY_NAME
+  );
+  if (coordinatorBootstrap.created) {
+    process.stdout.write(
+      `Created bootstrap coordinator user '${DEFAULT_COORDINATOR_USERNAME}'.\n`
+    );
+  }
 }
 
 function main() {
@@ -61,11 +115,24 @@ function main() {
 
       if (req.method === "POST" && url.pathname === "/api/postpartum/auth/login") {
         const payload = await readJson(req);
-        return handleAuthLogin(payload, res);
+        return handleAuthLogin(req, payload, res);
       }
 
       if (req.method === "POST" && url.pathname === "/api/postpartum/auth/logout") {
         return handleAuthLogout(req, res);
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/postpartum/admin/users") {
+        const auth = requireRole(req, res, ["ADMIN"]);
+        if (!auth) return;
+        return json(res, 200, { users: store.listUsers() });
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/postpartum/admin/users") {
+        const auth = requireRole(req, res, ["ADMIN"]);
+        if (!auth) return;
+        const payload = await readJson(req);
+        return handleAdminCreateUser(payload, res);
       }
 
       if (req.method === "GET" && url.pathname === "/api/postpartum/audit/recent") {
@@ -79,7 +146,7 @@ function main() {
       }
 
       if (req.method === "GET" && url.pathname === "/api/postpartum/audit/changes") {
-        const auth = requireAuth(req, res);
+        const auth = requireRole(req, res, ["COORDINATOR", "ADMIN"]);
         if (!auth) return;
 
         const limit = parsePositiveInt(url.searchParams.get("limit"), 50, 200);
@@ -166,7 +233,7 @@ async function handleOutcomeUpdate(
   payload: unknown,
   res: ServerResponse
 ) {
-  const auth = requireAuth(req, res);
+  const auth = requireRole(req, res, ["COORDINATOR", "ADMIN"]);
   if (!auth) return;
 
   if (!isRecord(payload)) {
@@ -188,7 +255,7 @@ async function handleOutcomeUpdate(
     return json(res, 400, { error: "No valid outcome fields provided." });
   }
 
-  const updated = store.updateOutcome(eventId, outcomePatch, auth.actor);
+  const updated = store.updateOutcome(eventId, outcomePatch, auth.username);
   if (!updated) {
     return json(res, 404, { error: "Audit event not found." });
   }
@@ -201,7 +268,7 @@ async function handleWorkflowUpdate(
   payload: unknown,
   res: ServerResponse
 ) {
-  const auth = requireAuth(req, res);
+  const auth = requireRole(req, res, ["COORDINATOR", "ADMIN"]);
   if (!auth) return;
 
   if (!isRecord(payload)) {
@@ -223,7 +290,7 @@ async function handleWorkflowUpdate(
     return json(res, 400, { error: "No valid workflow fields provided." });
   }
 
-  const updated = store.updateWorkflow(eventId, workflowPatch, auth.actor);
+  const updated = store.updateWorkflow(eventId, workflowPatch, auth.username);
   if (!updated) {
     return json(res, 404, { error: "Audit event not found." });
   }
@@ -238,24 +305,65 @@ function handleSessionStatus(req: IncomingMessage, res: ServerResponse) {
   }
   return json(res, 200, {
     authenticated: true,
-    actor: session.actor,
+    username: session.username,
+    role: session.role,
+    display_name: session.displayName,
+    actor: session.displayName ?? session.username,
     expires_at: new Date(session.expiresAt).toISOString(),
   });
 }
 
-async function handleAuthLogin(payload: unknown, res: ServerResponse) {
+async function handleAuthLogin(req: IncomingMessage, payload: unknown, res: ServerResponse) {
   if (!isRecord(payload)) {
     return json(res, 400, { error: "Invalid payload; expected JSON object." });
   }
 
-  const passcode = typeof payload.passcode === "string" ? payload.passcode : "";
-  if (passcode !== COORDINATOR_PASSCODE) {
-    return json(res, 401, { error: "Invalid passcode." });
+  const username = normalizeOptionalUsername(payload.username);
+  if (!username) {
+    return json(res, 400, { error: "username is required." });
   }
 
-  const actorRaw = typeof payload.actor === "string" ? payload.actor.trim() : "";
-  const actor = actorRaw.length > 0 ? actorRaw : "coordinator";
-  const { sessionId, session } = store.createSession(actor, SESSION_TTL_SECONDS);
+  const password = typeof payload.password === "string" ? payload.password : "";
+  if (!password) {
+    return json(res, 400, { error: "password is required." });
+  }
+
+  const now = Date.now();
+  const attemptKey = buildLoginAttemptKey(req, username);
+  const throttle = store.getLoginThrottle(attemptKey, now);
+  if (throttle.blocked) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((throttle.blockedUntil - now) / 1000));
+    return json(res, 429, {
+      error: `Too many failed attempts. Try again in ${retryAfterSeconds} seconds.`,
+      retry_after_seconds: retryAfterSeconds,
+    });
+  }
+
+  const user = store.verifyCredentials(username, password);
+  if (!user) {
+    const updatedThrottle = store.recordFailedLoginAttempt(
+      attemptKey,
+      now,
+      AUTH_MAX_FAILED_ATTEMPTS,
+      AUTH_COOLDOWN_MS
+    );
+
+    if (updatedThrottle.blocked) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((updatedThrottle.blockedUntil - now) / 1000)
+      );
+      return json(res, 429, {
+        error: `Too many failed attempts. Try again in ${retryAfterSeconds} seconds.`,
+        retry_after_seconds: retryAfterSeconds,
+      });
+    }
+
+    return json(res, 401, { error: "Invalid username or password." });
+  }
+
+  store.clearLoginThrottle(attemptKey);
+  const { sessionId, session } = store.createSession(user, SESSION_TTL_SECONDS);
 
   res.setHeader(
     "Set-Cookie",
@@ -263,7 +371,10 @@ async function handleAuthLogin(payload: unknown, res: ServerResponse) {
   );
   return json(res, 200, {
     authenticated: true,
-    actor,
+    username: session.username,
+    role: session.role,
+    display_name: session.displayName,
+    actor: session.displayName ?? session.username,
     expires_at: new Date(session.expiresAt).toISOString(),
   });
 }
@@ -279,18 +390,53 @@ function handleAuthLogout(req: IncomingMessage, res: ServerResponse) {
   return json(res, 200, { authenticated: false });
 }
 
-function requireAuth(req: IncomingMessage, res: ServerResponse): { actor: string } | null {
+async function handleAdminCreateUser(payload: unknown, res: ServerResponse) {
+  if (!isRecord(payload)) {
+    return json(res, 400, { error: "Invalid payload; expected JSON object." });
+  }
+
+  const username = normalizeOptionalUsername(payload.username);
+  if (!username) {
+    return json(res, 400, { error: "username is required." });
+  }
+
+  const password = typeof payload.password === "string" ? payload.password : "";
+  if (password.length < 8) {
+    return json(res, 400, { error: "password must be at least 8 characters." });
+  }
+
+  const role = parseRole(payload.role);
+  if (!role) {
+    return json(res, 400, { error: "role must be COORDINATOR or ADMIN." });
+  }
+
+  const displayName = normalizeOptionalString(payload.display_name);
+  const created = store.createUser(username, password, role, displayName);
+  if (!created) {
+    return json(res, 409, { error: "username already exists." });
+  }
+
+  return json(res, 201, { user: created });
+}
+
+function requireRole(
+  req: IncomingMessage,
+  res: ServerResponse,
+  allowedRoles: PostpartumUserRole[]
+) {
   const session = getSessionFromRequest(req);
   if (!session) {
     json(res, 401, { error: "Authentication required." });
     return null;
   }
-  return { actor: session.actor };
+  if (!allowedRoles.includes(session.role)) {
+    json(res, 403, { error: "Insufficient role." });
+    return null;
+  }
+  return session;
 }
 
-function getSessionFromRequest(req: IncomingMessage):
-  | { actor: string; createdAt: string; expiresAt: number }
-  | null {
+function getSessionFromRequest(req: IncomingMessage) {
   const cookies = parseCookies(req.headers.cookie ?? "");
   const sessionId = cookies[SESSION_COOKIE_NAME];
   if (!sessionId) return null;
@@ -374,6 +520,13 @@ function parseCookies(header: string): Record<string, string> {
 }
 
 function parsePositiveInt(raw: string | null, fallback: number, max: number): number {
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, max);
+}
+
+function parseEnvPositiveInt(raw: string | undefined, fallback: number, max: number): number {
   if (!raw) return fallback;
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
@@ -555,6 +708,44 @@ function parseNullableIsoDateField(value: unknown, field: string):
 
 function hasOwn(record: Record<string, unknown>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, key);
+}
+
+function normalizeUsername(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+function normalizeOptionalUsername(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = normalizeUsername(value);
+  if (!normalized) return null;
+  return normalized;
+}
+
+function normalizeOptionalString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed;
+}
+
+function parseRole(value: unknown): PostpartumUserRole | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "COORDINATOR") return "COORDINATOR";
+  if (normalized === "ADMIN") return "ADMIN";
+  return null;
+}
+
+function getClientIp(req: IncomingMessage): string {
+  const xff = req.headers["x-forwarded-for"];
+  if (typeof xff === "string" && xff.trim().length > 0) {
+    return xff.split(",")[0]?.trim() ?? "unknown";
+  }
+  return req.socket.remoteAddress ?? "unknown";
+}
+
+function buildLoginAttemptKey(req: IncomingMessage, username: string): string {
+  return `${username}|${getClientIp(req)}`;
 }
 
 main();

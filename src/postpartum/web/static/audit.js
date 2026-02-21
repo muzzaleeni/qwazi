@@ -4,8 +4,8 @@ const limitEl = document.getElementById("limit");
 const queueFilterEl = document.getElementById("queue-filter");
 const refreshBtn = document.getElementById("refresh");
 
-const authActorEl = document.getElementById("auth-actor");
-const authPasscodeEl = document.getElementById("auth-passcode");
+const authUsernameEl = document.getElementById("auth-username");
+const authPasswordEl = document.getElementById("auth-password");
 const authLoginBtn = document.getElementById("auth-login");
 const authLogoutBtn = document.getElementById("auth-logout");
 const authStateEl = document.getElementById("auth-state");
@@ -39,7 +39,14 @@ const fieldNotes = document.getElementById("outcome-notes");
 let currentEvents = [];
 let filteredEvents = [];
 let currentChanges = [];
-let authSession = { authenticated: false, actor: null, expires_at: null };
+let authSession = {
+  authenticated: false,
+  username: null,
+  role: null,
+  actor: null,
+  display_name: null,
+  expires_at: null,
+};
 
 refreshBtn.addEventListener("click", () => load());
 limitEl.addEventListener("change", () => load());
@@ -48,8 +55,8 @@ outcomeCancelBtn.addEventListener("click", () => hideEditor());
 outcomeForm.addEventListener("submit", onSaveCase);
 authLoginBtn.addEventListener("click", onLogin);
 authLogoutBtn.addEventListener("click", onLogout);
-authActorEl.addEventListener("keydown", onAuthInputKeydown);
-authPasscodeEl.addEventListener("keydown", onAuthInputKeydown);
+authUsernameEl.addEventListener("keydown", onAuthInputKeydown);
+authPasswordEl.addEventListener("keydown", onAuthInputKeydown);
 
 initialize().catch((error) => {
   statusEl.textContent = `Failed to initialize dashboard: ${error.message}`;
@@ -156,7 +163,7 @@ function renderRows(events) {
 
 function renderActionButtons(event) {
   const status = event.workflow?.status || "NEW";
-  const canEdit = authSession.authenticated;
+  const canEdit = canEditCases();
   const startDisabled = !canEdit || status === "IN_PROGRESS";
   const closeDisabled = !canEdit || status === "CLOSED";
   const updateDisabled = !canEdit;
@@ -166,6 +173,11 @@ function renderActionButtons(event) {
     <button type="button" data-action="mark_closed" data-event-id="${escapeAttr(event.eventId)}" ${closeDisabled ? "disabled" : ""}>Close</button>
     <button type="button" data-action="update" data-event-id="${escapeAttr(event.eventId)}" ${updateDisabled ? "disabled" : ""}>Update</button>
   </div>`;
+}
+
+function canEditCases() {
+  if (!authSession.authenticated) return false;
+  return authSession.role === "COORDINATOR" || authSession.role === "ADMIN";
 }
 
 async function onRowAction(event) {
@@ -276,7 +288,7 @@ async function loadChanges(limit) {
   }
 
   const response = await fetch(`/api/postpartum/audit/changes?limit=${limit}`);
-  if (response.status === 401) {
+  if (response.status === 401 || response.status === 403) {
     await refreshSession();
     return;
   }
@@ -318,8 +330,8 @@ function renderChangeRows(changes, emptyMessage) {
 function openEditor(eventId) {
   const event = currentEvents.find((item) => item.eventId === eventId);
   if (!event) return;
-  if (!authSession.authenticated) {
-    statusEl.textContent = "Sign in required before editing cases.";
+  if (!canEditCases()) {
+    statusEl.textContent = "Sign in as coordinator/admin before editing cases.";
     return;
   }
 
@@ -338,8 +350,10 @@ function openEditor(eventId) {
     typeof event.outcome?.resolved === "boolean" ? String(event.outcome.resolved) : "";
   fieldNotes.value = event.outcome?.notes || "";
 
-  const actor = event.last_updated_by || event.workflow?.updated_by || event.outcome?.updated_by || "system";
-  const updatedAt = event.last_updated_at || event.workflow?.updated_at || event.outcome?.updated_at || event.timestamp;
+  const actor =
+    event.last_updated_by || event.workflow?.updated_by || event.outcome?.updated_by || "system";
+  const updatedAt =
+    event.last_updated_at || event.workflow?.updated_at || event.outcome?.updated_at || event.timestamp;
   editorMetaEl.textContent = `Last updated by ${actor} at ${formatDate(updatedAt)}.`;
 
   editorEl.classList.remove("hidden");
@@ -414,14 +428,29 @@ async function refreshSession() {
   const response = await fetch("/api/postpartum/auth/session");
   const body = await safeJson(response);
   if (!response.ok || !body?.authenticated) {
-    authSession = { authenticated: false, actor: null, expires_at: null };
+    authSession = {
+      authenticated: false,
+      username: null,
+      role: null,
+      actor: null,
+      display_name: null,
+      expires_at: null,
+    };
     renderAuthState();
     return authSession;
   }
 
   authSession = {
     authenticated: true,
-    actor: typeof body.actor === "string" ? body.actor : "coordinator",
+    username: typeof body.username === "string" ? body.username : null,
+    role: typeof body.role === "string" ? body.role : null,
+    actor:
+      typeof body.actor === "string"
+        ? body.actor
+        : typeof body.username === "string"
+          ? body.username
+          : null,
+    display_name: typeof body.display_name === "string" ? body.display_name : null,
     expires_at: typeof body.expires_at === "string" ? body.expires_at : null,
   };
   renderAuthState();
@@ -430,14 +459,18 @@ async function refreshSession() {
 
 function renderAuthState() {
   const signedIn = authSession.authenticated;
-  authActorEl.disabled = signedIn;
-  authPasscodeEl.disabled = signedIn;
+  authUsernameEl.disabled = signedIn;
+  authPasswordEl.disabled = signedIn;
   authLoginBtn.classList.toggle("hidden", signedIn);
   authLogoutBtn.classList.toggle("hidden", !signedIn);
 
   if (signedIn) {
-    const expiryText = authSession.expires_at ? ` (expires ${formatDate(authSession.expires_at)})` : "";
-    authStateEl.textContent = `Signed in as ${authSession.actor}.${expiryText}`;
+    const expiryText = authSession.expires_at
+      ? ` (expires ${formatDate(authSession.expires_at)})`
+      : "";
+    const roleText = authSession.role ? ` [${authSession.role}]` : "";
+    const who = authSession.actor || authSession.username || "user";
+    authStateEl.textContent = `Signed in as ${who}${roleText}.${expiryText}`;
   } else {
     authStateEl.textContent = "Not signed in. Sign in required for updates.";
     hideEditor();
@@ -453,17 +486,20 @@ function renderAuthState() {
 }
 
 async function onLogin() {
-  const passcode = authPasscodeEl.value.trim();
-  if (!passcode) {
-    authStateEl.textContent = "Passcode is required.";
+  const username = authUsernameEl.value.trim().toLowerCase();
+  const password = authPasswordEl.value;
+
+  if (!username) {
+    authStateEl.textContent = "Username is required.";
+    return;
+  }
+  if (!password) {
+    authStateEl.textContent = "Password is required.";
     return;
   }
 
   authStateEl.textContent = "Signing in...";
-  const payload = {
-    actor: parseOptionalStringOrNull(authActorEl.value),
-    passcode,
-  };
+  const payload = { username, password };
   const response = await postJson("/api/postpartum/auth/login", payload, {
     refreshOnUnauthorized: false,
   });
@@ -473,9 +509,9 @@ async function onLogin() {
     return;
   }
 
-  authPasscodeEl.value = "";
+  authPasswordEl.value = "";
   await refreshSession();
-  statusEl.textContent = `Authenticated as ${authSession.actor}.`;
+  statusEl.textContent = `Authenticated as ${authSession.actor || authSession.username}.`;
 }
 
 async function onLogout() {
@@ -492,11 +528,11 @@ function onAuthInputKeydown(event) {
 }
 
 async function ensureAuthenticated() {
-  if (authSession.authenticated) return true;
+  if (canEditCases()) return true;
   await refreshSession();
-  if (authSession.authenticated) return true;
-  statusEl.textContent = "Sign in as coordinator to update cases.";
-  authPasscodeEl.focus();
+  if (canEditCases()) return true;
+  statusEl.textContent = "Sign in as coordinator/admin to update cases.";
+  authUsernameEl.focus();
   return false;
 }
 
@@ -509,7 +545,7 @@ async function postJson(url, payload, options = {}) {
   });
 
   const body = await safeJson(response);
-  if (response.status === 401 && refreshOnUnauthorized) {
+  if ((response.status === 401 || response.status === 403) && refreshOnUnauthorized) {
     await refreshSession();
   }
 
@@ -521,8 +557,10 @@ async function postJson(url, payload, options = {}) {
 }
 
 function formatLastUpdated(event) {
-  const actor = event.last_updated_by || event.workflow?.updated_by || event.outcome?.updated_by || "system";
-  const updatedAt = event.last_updated_at || event.workflow?.updated_at || event.outcome?.updated_at || event.timestamp;
+  const actor =
+    event.last_updated_by || event.workflow?.updated_by || event.outcome?.updated_by || "system";
+  const updatedAt =
+    event.last_updated_at || event.workflow?.updated_at || event.outcome?.updated_at || event.timestamp;
   return `${actor} @ ${formatDate(updatedAt)}`;
 }
 
