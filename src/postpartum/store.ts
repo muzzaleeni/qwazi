@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import Database from "better-sqlite3";
 import {
   createAuditChangeEvent,
   PostpartumAuditChangeEvent,
@@ -48,12 +48,12 @@ const PASSWORD_SCRYPT_P = 1;
 const PASSWORD_HASH_VERSION = "scrypt-v1";
 
 export class PostpartumStore {
-  private readonly db: DatabaseSync;
+  private readonly db: Database.Database;
 
   constructor(pathToDb: string) {
     const absolute = resolve(pathToDb);
     mkdirSync(dirname(absolute), { recursive: true });
-    this.db = new DatabaseSync(absolute);
+    this.db = new Database(absolute);
     this.db.exec("PRAGMA journal_mode = WAL;");
     this.db.exec("PRAGMA synchronous = NORMAL;");
     this.db.exec("PRAGMA foreign_keys = ON;");
