@@ -42,6 +42,7 @@ Web UI:
 - Open `http://localhost:4173` after `npm run postpartum:web`
 - Triage history dashboard: `http://localhost:4173/audit.html`
 - Recent history API: `GET /api/postpartum/audit/recent?limit=50`
+- Change history API: `GET /api/postpartum/audit/changes?limit=50` (auth required)
 - Auth session API: `GET /api/postpartum/auth/session`
 - Auth login API: `POST /api/postpartum/auth/login` with `{ actor?, passcode }`
 - Auth logout API: `POST /api/postpartum/auth/logout`

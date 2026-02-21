@@ -17,6 +17,8 @@ const metricUncertaintyShareEl = document.getElementById("metric-uncertainty-sha
 const metricOverdueOpenEl = document.getElementById("metric-overdue-open");
 const metricTimeToCloseEl = document.getElementById("metric-time-to-close");
 const metricOpenHighRiskEl = document.getElementById("metric-open-high-risk");
+const changeRowsEl = document.getElementById("change-rows");
+const changeStatusEl = document.getElementById("change-status");
 
 const editorEl = document.getElementById("outcome-editor");
 const editorMetaEl = document.getElementById("editor-meta");
@@ -36,6 +38,7 @@ const fieldNotes = document.getElementById("outcome-notes");
 
 let currentEvents = [];
 let filteredEvents = [];
+let currentChanges = [];
 let authSession = { authenticated: false, actor: null, expires_at: null };
 
 refreshBtn.addEventListener("click", () => load());
@@ -68,6 +71,7 @@ async function load() {
   const body = await response.json();
   currentEvents = Array.isArray(body.events) ? body.events : [];
   applyFilterAndRender();
+  await loadChanges(limit);
   statusEl.textContent = `${filteredEvents.length} shown / ${currentEvents.length} total`;
 }
 
@@ -263,6 +267,54 @@ function renderMetrics(events) {
   metricOpenHighRiskEl.textContent = `${openHighRisk.length}`;
 }
 
+async function loadChanges(limit) {
+  if (!authSession.authenticated) {
+    currentChanges = [];
+    renderChangeRows(currentChanges, "Sign in to load change history.");
+    changeStatusEl.textContent = "Sign in to view immutable edit history.";
+    return;
+  }
+
+  const response = await fetch(`/api/postpartum/audit/changes?limit=${limit}`);
+  if (response.status === 401) {
+    await refreshSession();
+    return;
+  }
+  if (!response.ok) {
+    currentChanges = [];
+    renderChangeRows(currentChanges, "No change events.");
+    changeStatusEl.textContent = `Failed to load change history (HTTP ${response.status}).`;
+    return;
+  }
+
+  const body = await response.json();
+  currentChanges = Array.isArray(body.changes) ? body.changes : [];
+  renderChangeRows(currentChanges, "No change events.");
+  changeStatusEl.textContent = `${currentChanges.length} latest immutable updates.`;
+}
+
+function renderChangeRows(changes, emptyMessage) {
+  changeRowsEl.innerHTML = "";
+  if (!changes || changes.length === 0) {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td colspan="5">${escapeHtml(emptyMessage || "No change events.")}</td>`;
+    changeRowsEl.appendChild(row);
+    return;
+  }
+
+  changes.forEach((change) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${escapeHtml(formatDate(change.timestamp))}</td>
+      <td>${escapeHtml(change.editor || "-")}</td>
+      <td>${escapeHtml(change.changeType || "-")}</td>
+      <td>${escapeHtml(change.eventId || "-")}</td>
+      <td>${escapeHtml(formatPatchSummary(change.patch))}</td>
+    `;
+    changeRowsEl.appendChild(row);
+  });
+}
+
 function openEditor(eventId) {
   const event = currentEvents.find((item) => item.eventId === eventId);
   if (!event) return;
@@ -389,9 +441,15 @@ function renderAuthState() {
   } else {
     authStateEl.textContent = "Not signed in. Sign in required for updates.";
     hideEditor();
+    currentChanges = [];
+    renderChangeRows(currentChanges, "Sign in to load change history.");
+    changeStatusEl.textContent = "Sign in to view immutable edit history.";
   }
 
   applyFilterAndRender();
+  if (signedIn) {
+    void loadChanges(normalizeLimit(limitEl.value));
+  }
 }
 
 async function onLogin() {
@@ -534,6 +592,24 @@ function formatOutcome(outcome) {
         : "resolved:no"
       : "resolved:unk";
   return `${sought} | ${time} | ${resolved}`;
+}
+
+function formatPatchSummary(patch) {
+  if (!patch || typeof patch !== "object") return "-";
+  const entries = Object.entries(patch);
+  if (entries.length === 0) return "(no fields)";
+  return entries
+    .slice(0, 4)
+    .map(([key, value]) => `${key}:${formatPatchValue(value)}`)
+    .join(" | ");
+}
+
+function formatPatchValue(value) {
+  if (value === null) return "null";
+  if (value === undefined) return "unset";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "[object]";
 }
 
 function normalizeLimit(raw) {

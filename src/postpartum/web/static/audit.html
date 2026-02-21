@@ -179,6 +179,29 @@
             </div>
           </form>
         </section>
+
+        <section class="change-history" id="change-history">
+          <div class="change-history-head">
+            <h3>Recent Change History</h3>
+            <p class="hint" id="change-status">Sign in to view immutable edit history.</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Editor</th>
+                  <th>Change Type</th>
+                  <th>Case Event ID</th>
+                  <th>Patch</th>
+                </tr>
+              </thead>
+              <tbody id="change-rows">
+                <tr><td colspan="5">Sign in to load change history.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </section>
     </main>
     <script src="/audit.js"></script>

@@ -8,6 +8,7 @@ import {
   appendAuditEventJsonl,
   createAuditChangeEvent,
   createPostpartumAuditEvent,
+  readAuditChangeEventsJsonl,
   readAuditEventsJsonl,
   updateAuditEventOutcome,
   updateAuditEventWorkflow,
@@ -72,6 +73,19 @@ function main() {
         return json(res, 200, {
           events,
           count: events.length,
+          limit,
+        });
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/postpartum/audit/changes") {
+        const auth = requireAuth(req, res);
+        if (!auth) return;
+
+        const limit = parsePositiveInt(url.searchParams.get("limit"), 50, 200);
+        const changes = readAuditChangeEventsJsonl(DEFAULT_CHANGE_LOG, limit);
+        return json(res, 200, {
+          changes,
+          count: changes.length,
           limit,
         });
       }

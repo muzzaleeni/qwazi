@@ -200,6 +200,46 @@ const tests: TestCase[] = [
       assertEqual(target?.last_updated_by, "ops-b", "history event should reflect editor");
     },
   },
+  {
+    id: "WEB_T004",
+    description: "Change-history endpoint is auth-protected and returns immutable edits after login.",
+    run: async (ctx) => {
+      await ctx.request("/api/postpartum/auth/logout", {
+        method: "POST",
+        body: jsonBody({}),
+      });
+
+      const withoutAuth = await ctx.request("/api/postpartum/audit/changes?limit=5");
+      assertEqual(withoutAuth.status, 401, "expected 401 when requesting changes without auth");
+
+      await loginAsCoordinator(ctx, "ops-c");
+      const eventId = await createEvaluationEvent(ctx);
+      const workflowResp = await ctx.request("/api/postpartum/audit/workflow", {
+        method: "POST",
+        body: jsonBody({
+          eventId,
+          workflow: { status: "WAITING", owner: "ops-c" },
+        }),
+      });
+      assertEqual(workflowResp.status, 200, "expected 200 workflow update before reading changes");
+
+      const withAuth = await ctx.request("/api/postpartum/audit/changes?limit=5");
+      assertEqual(withAuth.status, 200, "expected 200 when requesting changes with auth");
+
+      const body = (await safeJson(withAuth)) as {
+        changes?: Array<Record<string, unknown>>;
+        count?: number;
+      };
+      const changes = Array.isArray(body.changes) ? body.changes : [];
+      assertTruthy(changes.length > 0, "expected at least one change event");
+      assertEqual(typeof body.count, "number", "expected numeric count in change-history response");
+
+      const latest = changes[0] ?? {};
+      assertTruthy(latest.changeId, "expected changeId on change event");
+      assertTruthy(latest.eventId, "expected eventId on change event");
+      assertTruthy(latest.timestamp, "expected timestamp on change event");
+    },
+  },
 ];
 
 async function main() {

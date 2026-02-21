@@ -369,6 +369,21 @@ tbody tr:hover {
   background: #fff;
 }
 
+.change-history {
+  margin-top: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.8rem 0.9rem;
+  background: #fff;
+}
+
+.change-history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.8rem;
+}
+
 .outcome-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

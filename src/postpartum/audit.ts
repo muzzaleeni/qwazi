@@ -154,6 +154,33 @@ export function readAuditEventsJsonl(pathToJsonl: string, limit = 50): Postpartu
   return parsed.slice(-boundedLimit).reverse();
 }
 
+export function readAuditChangeEventsJsonl(
+  pathToJsonl: string,
+  limit = 50
+): PostpartumAuditChangeEvent[] {
+  const absolutePath = resolve(pathToJsonl);
+  if (!existsSync(absolutePath)) return [];
+
+  const raw = readFileSync(absolutePath, "utf8");
+  if (!raw.trim()) return [];
+
+  const parsed = raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      try {
+        return JSON.parse(line) as PostpartumAuditChangeEvent;
+      } catch {
+        return null;
+      }
+    })
+    .filter((item): item is PostpartumAuditChangeEvent => item !== null);
+
+  const boundedLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 50;
+  return parsed.slice(-boundedLimit).reverse();
+}
+
 export function readAllAuditEventsJsonl(pathToJsonl: string): PostpartumAuditEvent[] {
   const absolutePath = resolve(pathToJsonl);
   if (!existsSync(absolutePath)) return [];

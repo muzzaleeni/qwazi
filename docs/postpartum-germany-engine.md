@@ -91,6 +91,7 @@ npm run postpartum:example
 - CLI supports JSONL pilot audit logs via `--audit-log` (with optional `--include-input`).
 - Web evaluation calls are persisted automatically to `logs/postpartum-history.jsonl`.
 - Recent history endpoint: `GET /api/postpartum/audit/recent?limit=50`.
+- Change history endpoint: `GET /api/postpartum/audit/changes?limit=50` (auth required).
 - Auth session endpoint: `GET /api/postpartum/auth/session`.
 - Auth login endpoint: `POST /api/postpartum/auth/login` with `{ actor?, passcode }`.
 - Auth logout endpoint: `POST /api/postpartum/auth/logout`.
@@ -104,4 +105,5 @@ npm run postpartum:example
 - Weekly ops metrics added: `% overdue`, `median time to close`, `open high-risk cases`.
 - Dashboard row quick actions: `Start` (IN_PROGRESS) and `Close` (CLOSED).
 - Dashboard shows case `last updated by` and timestamp for coordinator handoffs.
+- Dashboard includes a `Recent Change History` table backed by immutable JSONL change events.
 - This is triage support logic, not diagnosis or treatment advice.
