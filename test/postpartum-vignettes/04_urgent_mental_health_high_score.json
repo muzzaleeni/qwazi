@@ -1,0 +1,32 @@
+{
+  "id": "PP_V004",
+  "description": "Urgent same-day for high mental-health burden without emergency red flags.",
+  "input": {
+    "weeksPostpartum": 12,
+    "suicidalIdeationNow": false,
+    "suicidalIntentOrPlan": false,
+    "thoughtsOfHarmingBaby": false,
+    "psychosisWarningSigns": false,
+    "heavyBleedingEmergencyPattern": false,
+    "highFeverAndSeverePain": false,
+    "syncopeOrCollapse": false,
+    "chestPainOrSevereBreathlessness": false,
+    "depressedMoodMostDays": true,
+    "anxietyOrPanicMostDays": true,
+    "sleepSeverelyDisruptedNotByBaby": true,
+    "bondingDifficulty": true,
+    "anhedonia": true,
+    "functionalImpairmentMental": true,
+    "functionalImpairmentPelvic": false,
+    "priorDepressionOrAnxiety": true,
+    "poorSocialSupport": true,
+    "inconsistencyLevel": "NONE",
+    "userUncertainOnSafetyQuestions": false
+  },
+  "expected": {
+    "level": "URGENT_SAME_DAY",
+    "isEmergency": false,
+    "scoreTotalMin": 7,
+    "expectedEmergencyNumber": "112"
+  }
+}

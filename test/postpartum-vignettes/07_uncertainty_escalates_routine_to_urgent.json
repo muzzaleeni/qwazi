@@ -1,0 +1,15 @@
+{
+  "id": "PP_V007",
+  "description": "Uncertainty escalation lifts low-score case from routine follow-up to urgent same-day.",
+  "input": {
+    "weeksPostpartum": 18,
+    "inconsistencyLevel": "MAJOR",
+    "userUncertainOnSafetyQuestions": true
+  },
+  "expected": {
+    "level": "URGENT_SAME_DAY",
+    "isEmergency": false,
+    "scoreTotalMax": 3,
+    "expectedEmergencyNumber": "112"
+  }
+}

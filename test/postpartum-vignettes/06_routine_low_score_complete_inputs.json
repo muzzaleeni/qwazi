@@ -1,0 +1,30 @@
+{
+  "id": "PP_V006",
+  "description": "Routine follow-up for low score with complete critical inputs and no red flags.",
+  "input": {
+    "weeksPostpartum": 8,
+    "suicidalIdeationNow": false,
+    "suicidalIntentOrPlan": false,
+    "thoughtsOfHarmingBaby": false,
+    "psychosisWarningSigns": false,
+    "heavyBleedingEmergencyPattern": false,
+    "highFeverAndSeverePain": false,
+    "syncopeOrCollapse": false,
+    "chestPainOrSevereBreathlessness": false,
+    "depressedMoodMostDays": false,
+    "anxietyOrPanicMostDays": false,
+    "sleepSeverelyDisruptedNotByBaby": false,
+    "bondingDifficulty": true,
+    "anhedonia": false,
+    "functionalImpairmentMental": false,
+    "functionalImpairmentPelvic": false,
+    "inconsistencyLevel": "NONE",
+    "userUncertainOnSafetyQuestions": false
+  },
+  "expected": {
+    "level": "ROUTINE_FOLLOW_UP",
+    "isEmergency": false,
+    "scoreTotalMax": 3,
+    "expectedEmergencyNumber": "112"
+  }
+}

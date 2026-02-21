@@ -1,0 +1,28 @@
+{
+  "id": "PP_V008",
+  "description": "Uncertainty escalation raises urgent case to emergency when safety uncertainty is explicit.",
+  "input": {
+    "weeksPostpartum": 16,
+    "suicidalIdeationNow": false,
+    "suicidalIntentOrPlan": false,
+    "thoughtsOfHarmingBaby": false,
+    "psychosisWarningSigns": false,
+    "heavyBleedingEmergencyPattern": false,
+    "highFeverAndSeverePain": false,
+    "functionalImpairmentMental": true,
+    "depressedMoodMostDays": true,
+    "anxietyOrPanicMostDays": true,
+    "anhedonia": true,
+    "sleepSeverelyDisruptedNotByBaby": true,
+    "priorPostpartumDepression": true,
+    "cannotAnswerCriticalQuestions": true,
+    "userUncertainOnSafetyQuestions": true,
+    "inconsistencyLevel": "MAJOR"
+  },
+  "expected": {
+    "level": "EMERGENCY_NOW",
+    "isEmergency": true,
+    "scoreTotalMin": 7,
+    "expectedEmergencyNumber": "112"
+  }
+}

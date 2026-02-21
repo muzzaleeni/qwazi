@@ -1,0 +1,22 @@
+{
+  "id": "PP_V001",
+  "description": "Emergency when suicidal ideation and current intent/plan are both present.",
+  "input": {
+    "weeksPostpartum": 14,
+    "suicidalIdeationNow": true,
+    "suicidalIntentOrPlan": true,
+    "thoughtsOfHarmingBaby": false,
+    "psychosisWarningSigns": false,
+    "heavyBleedingEmergencyPattern": false,
+    "highFeverAndSeverePain": false,
+    "functionalImpairmentMental": true
+  },
+  "expected": {
+    "level": "EMERGENCY_NOW",
+    "isEmergency": true,
+    "requiredRedFlags": [
+      "PP_RF001"
+    ],
+    "expectedEmergencyNumber": "112"
+  }
+}

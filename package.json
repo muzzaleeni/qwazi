@@ -5,6 +5,9 @@
   "scripts": {
     "triage": "tsx src/triage/cli.ts",
     "triage:test": "tsx src/triage/run-vignettes.ts",
+    "postpartum": "tsx src/postpartum/cli.ts",
+    "postpartum:test": "tsx src/postpartum/run-vignettes.ts",
+    "postpartum:example": "tsx src/postpartum/example.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

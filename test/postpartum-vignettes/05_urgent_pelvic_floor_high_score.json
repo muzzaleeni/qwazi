@@ -1,0 +1,38 @@
+{
+  "id": "PP_V005",
+  "description": "Urgent same-day for pelvic floor injury symptom burden without emergency red flags.",
+  "input": {
+    "weeksPostpartum": 20,
+    "suicidalIdeationNow": false,
+    "suicidalIntentOrPlan": false,
+    "thoughtsOfHarmingBaby": false,
+    "psychosisWarningSigns": false,
+    "heavyBleedingEmergencyPattern": false,
+    "highFeverAndSeverePain": false,
+    "syncopeOrCollapse": false,
+    "chestPainOrSevereBreathlessness": false,
+    "depressedMoodMostDays": false,
+    "anxietyOrPanicMostDays": false,
+    "sleepSeverelyDisruptedNotByBaby": false,
+    "bondingDifficulty": false,
+    "anhedonia": false,
+    "functionalImpairmentMental": false,
+    "urinaryIncontinenceFrequent": true,
+    "fecalIncontinenceAny": true,
+    "urinaryRetention": false,
+    "severePerinealPainPersistent": true,
+    "perinealWoundConcerns": false,
+    "prolapseBulgeSymptoms": false,
+    "dyspareuniaPersistentSevere": true,
+    "functionalImpairmentPelvic": true,
+    "oasisHistory": true,
+    "inconsistencyLevel": "NONE",
+    "userUncertainOnSafetyQuestions": false
+  },
+  "expected": {
+    "level": "URGENT_SAME_DAY",
+    "isEmergency": false,
+    "scoreTotalMin": 7,
+    "expectedEmergencyNumber": "112"
+  }
+}

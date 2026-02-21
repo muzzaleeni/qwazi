@@ -1,0 +1,92 @@
+{
+  "version": "1.0.0-de-postpartum",
+  "metadata": {
+    "name": "Postpartum Silent Morbidity Triage v1",
+    "market": "DE",
+    "createdOn": "2026-02-21",
+    "emergencyNumber": "112"
+  },
+  "redFlagRules": [
+    {
+      "id": "PP_RF001",
+      "label": "Suicidal ideation with current intent or plan",
+      "description": "Immediate risk of self-harm."
+    },
+    {
+      "id": "PP_RF002",
+      "label": "Thoughts of harming the baby",
+      "description": "Immediate emergency safeguarding risk."
+    },
+    {
+      "id": "PP_RF003",
+      "label": "Psychosis warning signs",
+      "description": "Hallucinations, delusions, or severe disorientation."
+    },
+    {
+      "id": "PP_RF004",
+      "label": "Postpartum hemorrhage warning",
+      "description": "Heavy bleeding consistent with emergency hemorrhage concern."
+    },
+    {
+      "id": "PP_RF005",
+      "label": "Infection/sepsis concern",
+      "description": "High fever with severe pelvic or abdominal pain."
+    },
+    {
+      "id": "PP_RF006",
+      "label": "Collapse/chest emergency signs",
+      "description": "Syncope, chest pain, or severe breathing distress."
+    }
+  ],
+  "scoring": {
+    "mentalHealth": {
+      "depressedMoodMostDays": 2,
+      "anxietyOrPanicMostDays": 2,
+      "sleepSeverelyDisruptedNotByBaby": 2,
+      "bondingDifficulty": 1,
+      "anhedonia": 2,
+      "functionalImpairmentMental": 3,
+      "lateOnsetAfter6Weeks": 1
+    },
+    "pelvicFloorAndRecovery": {
+      "urinaryIncontinenceFrequent": 2,
+      "fecalIncontinenceAny": 4,
+      "urinaryRetention": 3,
+      "severePerinealPainPersistent": 3,
+      "perinealWoundConcerns": 3,
+      "prolapseBulgeSymptoms": 3,
+      "dyspareuniaPersistentSevere": 2,
+      "functionalImpairmentPelvic": 3
+    },
+    "historyAndContext": {
+      "priorDepressionOrAnxiety": 1,
+      "priorPostpartumDepression": 2,
+      "birthTraumaOrEmergencyDelivery": 1,
+      "oasisHistory": 2,
+      "poorSocialSupport": 1
+    }
+  },
+  "thresholds": {
+    "urgentSameDayMin": 7
+  },
+  "confidencePolicy": {
+    "criticalInputs": [
+      "weeksPostpartum",
+      "suicidalIdeationNow",
+      "thoughtsOfHarmingBaby",
+      "psychosisWarningSigns",
+      "heavyBleedingEmergencyPattern",
+      "highFeverAndSeverePain",
+      "functionalImpairmentOverall"
+    ]
+  },
+  "uncertaintyPolicy": {
+    "escalateOneLevel": true,
+    "conditions": [
+      "missingMoreThanTwoCriticalInputs",
+      "majorInconsistency",
+      "userUncertainOnSafetyQuestions",
+      "lowConfidence"
+    ]
+  }
+}

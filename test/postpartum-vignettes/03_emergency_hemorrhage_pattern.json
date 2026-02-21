@@ -1,0 +1,22 @@
+{
+  "id": "PP_V003",
+  "description": "Emergency for postpartum heavy bleeding emergency pattern.",
+  "input": {
+    "weeksPostpartum": 2,
+    "suicidalIdeationNow": false,
+    "suicidalIntentOrPlan": false,
+    "thoughtsOfHarmingBaby": false,
+    "psychosisWarningSigns": false,
+    "heavyBleedingEmergencyPattern": true,
+    "highFeverAndSeverePain": false,
+    "functionalImpairmentMental": false
+  },
+  "expected": {
+    "level": "EMERGENCY_NOW",
+    "isEmergency": true,
+    "requiredRedFlags": [
+      "PP_RF004"
+    ],
+    "expectedEmergencyNumber": "112"
+  }
+}

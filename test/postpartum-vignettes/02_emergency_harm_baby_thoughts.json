@@ -1,0 +1,22 @@
+{
+  "id": "PP_V002",
+  "description": "Emergency when user reports thoughts of harming the baby.",
+  "input": {
+    "weeksPostpartum": 5,
+    "suicidalIdeationNow": false,
+    "suicidalIntentOrPlan": false,
+    "thoughtsOfHarmingBaby": true,
+    "psychosisWarningSigns": false,
+    "heavyBleedingEmergencyPattern": false,
+    "highFeverAndSeverePain": false,
+    "functionalImpairmentMental": true
+  },
+  "expected": {
+    "level": "EMERGENCY_NOW",
+    "isEmergency": true,
+    "requiredRedFlags": [
+      "PP_RF002"
+    ],
+    "expectedEmergencyNumber": "112"
+  }
+}
