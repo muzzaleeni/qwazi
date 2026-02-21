@@ -59,6 +59,12 @@ Run postpartum regression vignettes:
 npm run postpartum:test
 ```
 
+Run postpartum web integration tests (auth, validation, change trail):
+
+```bash
+npm run postpartum:web:test
+```
+
 Run postpartum sample:
 
 ```bash

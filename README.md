@@ -27,6 +27,7 @@ Postpartum (Germany scope):
 ```bash
 npm run postpartum -- --input test/postpartum-vignettes/04_urgent_mental_health_high_score.json
 npm run postpartum:test
+npm run postpartum:web:test
 npm run postpartum:example
 npm run postpartum:web
 ```

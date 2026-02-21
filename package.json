@@ -7,6 +7,7 @@
     "triage:test": "tsx src/triage/run-vignettes.ts",
     "postpartum": "tsx src/postpartum/cli.ts",
     "postpartum:test": "tsx src/postpartum/run-vignettes.ts",
+    "postpartum:web:test": "tsx src/postpartum/run-web-tests.ts",
     "postpartum:example": "tsx src/postpartum/example.ts",
     "postpartum:web": "tsx src/postpartum/web/server.ts",
     "typecheck": "tsc --noEmit"
