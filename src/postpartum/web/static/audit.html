@@ -24,6 +24,15 @@
       <section class="panel">
         <div class="dashboard-toolbar">
           <label>
+            Queue
+            <select id="queue-filter">
+              <option value="ALL">All</option>
+              <option value="NEEDS_FOLLOW_UP_TODAY">Needs follow-up today</option>
+              <option value="OVERDUE">Overdue</option>
+              <option value="CLOSED">Closed</option>
+            </select>
+          </label>
+          <label>
             Limit
             <input id="limit" type="number" min="1" max="200" value="50" />
           </label>
@@ -48,6 +57,18 @@
             <p class="metric-label">Uncertainty Escalation Share</p>
             <p id="metric-uncertainty-share" class="metric-value">-</p>
           </article>
+          <article>
+            <p class="metric-label">Overdue Open Cases</p>
+            <p id="metric-overdue-open" class="metric-value">-</p>
+          </article>
+          <article>
+            <p class="metric-label">Median Time to Close</p>
+            <p id="metric-time-to-close" class="metric-value">-</p>
+          </article>
+          <article>
+            <p class="metric-label">Open High-Risk Cases</p>
+            <p id="metric-open-high-risk" class="metric-value">-</p>
+          </article>
         </div>
 
         <div class="table-wrap">
@@ -61,6 +82,9 @@
                 <th>Red Flags</th>
                 <th>Score</th>
                 <th>Confidence</th>
+                <th>Status</th>
+                <th>Owner</th>
+                <th>Follow-up Due</th>
                 <th>Outcome</th>
                 <th>Source</th>
                 <th>Run ID</th>
@@ -68,16 +92,39 @@
               </tr>
             </thead>
             <tbody id="rows">
-              <tr><td colspan="11">No data.</td></tr>
+              <tr><td colspan="14">No data.</td></tr>
             </tbody>
           </table>
         </div>
 
         <section class="outcome-editor hidden" id="outcome-editor">
-          <h3>Update Outcome</h3>
-          <p class="hint">This updates the selected event in persistent history.</p>
+          <h3>Update Case</h3>
+          <p class="hint">This updates outcome and workflow fields in persistent history.</p>
           <form id="outcome-form">
             <input id="outcome-event-id" type="hidden" />
+            <div class="outcome-grid">
+              <label>
+                Status
+                <select id="workflow-status">
+                  <option value="NEW">NEW</option>
+                  <option value="IN_PROGRESS">IN_PROGRESS</option>
+                  <option value="WAITING">WAITING</option>
+                  <option value="CLOSED">CLOSED</option>
+                </select>
+              </label>
+              <label>
+                Owner
+                <input id="workflow-owner" type="text" placeholder="e.g. coordinator-a" />
+              </label>
+              <label>
+                Follow-up due
+                <input id="workflow-follow-up-due" type="datetime-local" />
+              </label>
+              <label>
+                Last contact
+                <input id="workflow-last-contact" type="datetime-local" />
+              </label>
+            </div>
             <div class="outcome-grid">
               <label>
                 Care sought

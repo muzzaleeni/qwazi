@@ -42,6 +42,7 @@ Web UI:
 - Triage history dashboard: `http://localhost:4173/audit.html`
 - Recent history API: `GET /api/postpartum/audit/recent?limit=50`
 - Outcome update API: `POST /api/postpartum/audit/outcome` with `{ eventId, outcome }`
+- Workflow update API: `POST /api/postpartum/audit/workflow` with `{ eventId, workflow }`
 
 Cardiovascular module:
 

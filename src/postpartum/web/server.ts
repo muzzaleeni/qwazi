@@ -7,6 +7,7 @@ import {
   createPostpartumAuditEvent,
   readAuditEventsJsonl,
   updateAuditEventOutcome,
+  updateAuditEventWorkflow,
 } from "../audit";
 import { evaluatePostpartumTriage, loadPostpartumRulesFromFile } from "../evaluator";
 import { PostpartumInput } from "../types";
@@ -56,6 +57,11 @@ function main() {
       if (req.method === "POST" && url.pathname === "/api/postpartum/audit/outcome") {
         const payload = await readJson(req);
         return handleOutcomeUpdate(payload, res);
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/postpartum/audit/workflow") {
+        const payload = await readJson(req);
+        return handleWorkflowUpdate(payload, res);
       }
 
       if (req.method === "POST" && url.pathname === "/api/postpartum/evaluate") {
@@ -131,6 +137,27 @@ async function handleOutcomeUpdate(payload: unknown, res: ServerResponse) {
   const outcomeRaw = isRecord(payload.outcome) ? payload.outcome : {};
   const outcomePatch = normalizeOutcomePatch(outcomeRaw);
   const updated = updateAuditEventOutcome(DEFAULT_HISTORY_LOG, eventId, outcomePatch);
+
+  if (!updated) {
+    return json(res, 404, { error: "Audit event not found." });
+  }
+
+  return json(res, 200, { event: updated });
+}
+
+async function handleWorkflowUpdate(payload: unknown, res: ServerResponse) {
+  if (!isRecord(payload)) {
+    return json(res, 400, { error: "Invalid payload; expected JSON object." });
+  }
+
+  const eventId = typeof payload.eventId === "string" ? payload.eventId.trim() : "";
+  if (eventId.length === 0) {
+    return json(res, 400, { error: "eventId is required." });
+  }
+
+  const workflowRaw = isRecord(payload.workflow) ? payload.workflow : {};
+  const workflowPatch = normalizeWorkflowPatch(workflowRaw);
+  const updated = updateAuditEventWorkflow(DEFAULT_HISTORY_LOG, eventId, workflowPatch);
 
   if (!updated) {
     return json(res, 404, { error: "Audit event not found." });
@@ -250,6 +277,66 @@ function parseOptionalNumber(value: unknown): number | undefined {
     if (Number.isFinite(parsed)) return parsed;
   }
   return undefined;
+}
+
+function normalizeWorkflowPatch(workflow: Record<string, unknown>): {
+  status?: "NEW" | "IN_PROGRESS" | "WAITING" | "CLOSED";
+  owner?: string;
+  follow_up_due_at?: string;
+  last_contact_at?: string;
+} {
+  const status = parseStatus(workflow.status);
+  const owner = parseOptionalString(workflow.owner);
+  const followUpDueAt = parseOptionalIsoDate(workflow.follow_up_due_at);
+  const lastContactAt = parseOptionalIsoDate(workflow.last_contact_at);
+
+  const patch: {
+    status?: "NEW" | "IN_PROGRESS" | "WAITING" | "CLOSED";
+    owner?: string;
+    follow_up_due_at?: string;
+    last_contact_at?: string;
+  } = {};
+  if (status) patch.status = status;
+  if (Object.prototype.hasOwnProperty.call(workflow, "owner")) patch.owner = owner;
+  if (Object.prototype.hasOwnProperty.call(workflow, "follow_up_due_at")) {
+    patch.follow_up_due_at = followUpDueAt;
+  }
+  if (Object.prototype.hasOwnProperty.call(workflow, "last_contact_at")) {
+    patch.last_contact_at = lastContactAt;
+  }
+  return patch;
+}
+
+function parseStatus(value: unknown):
+  | "NEW"
+  | "IN_PROGRESS"
+  | "WAITING"
+  | "CLOSED"
+  | undefined {
+  if (typeof value !== "string") return undefined;
+  const raw = value.trim().toUpperCase();
+  if (raw === "NEW") return "NEW";
+  if (raw === "IN_PROGRESS") return "IN_PROGRESS";
+  if (raw === "WAITING") return "WAITING";
+  if (raw === "CLOSED") return "CLOSED";
+  return undefined;
+}
+
+function parseOptionalString(value: unknown): string | undefined {
+  if (value === null) return undefined;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function parseOptionalIsoDate(value: unknown): string | undefined {
+  if (value === null) return undefined;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
 }
 
 main();

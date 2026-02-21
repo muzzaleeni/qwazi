@@ -86,5 +86,9 @@ npm run postpartum:example
 - Web evaluation calls are persisted automatically to `logs/postpartum-history.jsonl`.
 - Recent history endpoint: `GET /api/postpartum/audit/recent?limit=50`.
 - Outcome update endpoint: `POST /api/postpartum/audit/outcome`.
+- Workflow update endpoint: `POST /api/postpartum/audit/workflow`.
 - Dashboard supports editing `care_sought`, `care_time`, `care_type`, `resolved`, and `notes`.
+- Coordinator workflow fields: `status`, `owner`, `follow_up_due_at`, `last_contact_at`.
+- Queue views: `Needs follow-up today`, `Overdue`, `Closed`.
+- Weekly ops metrics added: `% overdue`, `median time to close`, `open high-risk cases`.
 - This is triage support logic, not diagnosis or treatment advice.

@@ -36,6 +36,7 @@ export interface PostpartumAuditEvent {
   inputDigestSha256: string;
   inputSnapshot?: PostpartumInput;
   outcome?: PostpartumAuditOutcome;
+  workflow: PostpartumCaseWorkflow;
 }
 
 export interface PostpartumAuditOutcome {
@@ -47,11 +48,22 @@ export interface PostpartumAuditOutcome {
   updated_at: string;
 }
 
+export type PostpartumCaseStatus = "NEW" | "IN_PROGRESS" | "WAITING" | "CLOSED";
+
+export interface PostpartumCaseWorkflow {
+  status: PostpartumCaseStatus;
+  owner?: string;
+  follow_up_due_at?: string;
+  last_contact_at?: string;
+  updated_at: string;
+}
+
 export function createPostpartumAuditEvent(
   input: PostpartumInput,
   result: PostpartumResult,
   options: PostpartumAuditOptions = {}
 ): PostpartumAuditEvent {
+  const now = new Date().toISOString();
   const firedRedFlagIds = result.redFlags.filter((flag) => flag.fired).map((flag) => flag.id);
   const baseLevel = result.uncertainty.escalatedFrom ?? result.level;
   const inputJson = JSON.stringify(input);
@@ -59,7 +71,7 @@ export function createPostpartumAuditEvent(
 
   const event: PostpartumAuditEvent = {
     eventId: randomUUID(),
-    timestamp: new Date().toISOString(),
+    timestamp: now,
     source: options.source ?? "postpartum-cli",
     runId: options.runId ?? randomUUID(),
     rulesVersion: result.rulesVersion,
@@ -76,6 +88,10 @@ export function createPostpartumAuditEvent(
     firedRedFlagIds,
     uncertaintyReasons: result.uncertainty.reasons,
     inputDigestSha256,
+    workflow: {
+      status: "NEW",
+      updated_at: now,
+    },
   };
 
   if (options.includeInput) {
@@ -115,7 +131,8 @@ export function readAllAuditEventsJsonl(pathToJsonl: string): PostpartumAuditEve
         return null;
       }
     })
-    .filter((item): item is PostpartumAuditEvent => item !== null);
+    .filter((item): item is PostpartumAuditEvent => item !== null)
+    .map((event) => normalizeWorkflow(event));
   return parsed;
 }
 
@@ -136,7 +153,7 @@ export function updateAuditEventOutcome(
       ...outcomePatch,
       updated_at: new Date().toISOString(),
     };
-    updated = { ...event, outcome };
+    updated = normalizeWorkflow({ ...event, outcome });
     return updated;
   });
 
@@ -146,4 +163,44 @@ export function updateAuditEventOutcome(
   const body = `${next.map((item) => JSON.stringify(item)).join("\n")}\n`;
   writeFileSync(absolutePath, body, "utf8");
   return updated;
+}
+
+export function updateAuditEventWorkflow(
+  pathToJsonl: string,
+  eventId: string,
+  workflowPatch: Partial<Omit<PostpartumCaseWorkflow, "updated_at">>
+): PostpartumAuditEvent | null {
+  const absolutePath = resolve(pathToJsonl);
+  const events = readAllAuditEventsJsonl(absolutePath);
+  if (events.length === 0) return null;
+
+  let updated: PostpartumAuditEvent | null = null;
+  const next = events.map((event) => {
+    if (event.eventId !== eventId) return event;
+    const workflow: PostpartumCaseWorkflow = {
+      ...event.workflow,
+      ...workflowPatch,
+      updated_at: new Date().toISOString(),
+    };
+    updated = normalizeWorkflow({ ...event, workflow });
+    return updated;
+  });
+
+  if (!updated) return null;
+
+  mkdirSync(dirname(absolutePath), { recursive: true });
+  const body = `${next.map((item) => JSON.stringify(item)).join("\n")}\n`;
+  writeFileSync(absolutePath, body, "utf8");
+  return updated;
+}
+
+function normalizeWorkflow(event: PostpartumAuditEvent): PostpartumAuditEvent {
+  if (event.workflow) return event;
+  return {
+    ...event,
+    workflow: {
+      status: event.outcome?.resolved === true ? "CLOSED" : "NEW",
+      updated_at: event.timestamp,
+    },
+  };
 }
