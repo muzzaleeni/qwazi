@@ -41,6 +41,7 @@ Web UI:
 - Open `http://localhost:4173` after `npm run postpartum:web`
 - Triage history dashboard: `http://localhost:4173/audit.html`
 - Recent history API: `GET /api/postpartum/audit/recent?limit=50`
+- Outcome update API: `POST /api/postpartum/audit/outcome` with `{ eventId, outcome }`
 
 Cardiovascular module:
 

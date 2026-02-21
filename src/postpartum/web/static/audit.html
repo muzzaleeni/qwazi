@@ -31,6 +31,25 @@
           <span id="status" class="status">Loading…</span>
         </div>
 
+        <div class="metrics">
+          <article>
+            <p class="metric-label">Escalation Compliance</p>
+            <p id="metric-compliance" class="metric-value">-</p>
+          </article>
+          <article>
+            <p class="metric-label">Median Time to Care</p>
+            <p id="metric-median-time" class="metric-value">-</p>
+          </article>
+          <article>
+            <p class="metric-label">Emergency Share</p>
+            <p id="metric-emergency-share" class="metric-value">-</p>
+          </article>
+          <article>
+            <p class="metric-label">Uncertainty Escalation Share</p>
+            <p id="metric-uncertainty-share" class="metric-value">-</p>
+          </article>
+        </div>
+
         <div class="table-wrap">
           <table>
             <thead>
@@ -42,15 +61,67 @@
                 <th>Red Flags</th>
                 <th>Score</th>
                 <th>Confidence</th>
+                <th>Outcome</th>
                 <th>Source</th>
                 <th>Run ID</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="rows">
-              <tr><td colspan="9">No data.</td></tr>
+              <tr><td colspan="11">No data.</td></tr>
             </tbody>
           </table>
         </div>
+
+        <section class="outcome-editor hidden" id="outcome-editor">
+          <h3>Update Outcome</h3>
+          <p class="hint">This updates the selected event in persistent history.</p>
+          <form id="outcome-form">
+            <input id="outcome-event-id" type="hidden" />
+            <div class="outcome-grid">
+              <label>
+                Care sought
+                <select id="outcome-care-sought">
+                  <option value="">Unknown</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+              <label>
+                Care time (hours)
+                <input id="outcome-care-time" type="number" min="0" step="0.1" />
+              </label>
+              <label>
+                Care type
+                <select id="outcome-care-type">
+                  <option value="">Unknown</option>
+                  <option value="EMERGENCY">Emergency</option>
+                  <option value="PSYCHIATRY">Psychiatry</option>
+                  <option value="OBGYN">OB-GYN</option>
+                  <option value="HAUSARZT">Hausarzt</option>
+                  <option value="MIDWIFE">Hebamme</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </label>
+              <label>
+                Resolved
+                <select id="outcome-resolved">
+                  <option value="">Unknown</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              Notes
+              <textarea id="outcome-notes" rows="3"></textarea>
+            </label>
+            <div class="actions">
+              <button type="submit">Save Outcome</button>
+              <button type="button" id="outcome-cancel">Cancel</button>
+            </div>
+          </form>
+        </section>
       </section>
     </main>
     <script src="/audit.js"></script>

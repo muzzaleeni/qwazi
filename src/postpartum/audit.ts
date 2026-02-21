@@ -1,5 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 import { PostpartumInput, PostpartumResult } from "./types";
 
@@ -29,6 +35,16 @@ export interface PostpartumAuditEvent {
   uncertaintyReasons: string[];
   inputDigestSha256: string;
   inputSnapshot?: PostpartumInput;
+  outcome?: PostpartumAuditOutcome;
+}
+
+export interface PostpartumAuditOutcome {
+  care_sought?: boolean;
+  care_time?: number;
+  care_type?: string;
+  resolved?: boolean;
+  notes?: string;
+  updated_at: string;
 }
 
 export function createPostpartumAuditEvent(
@@ -76,6 +92,12 @@ export function appendAuditEventJsonl(pathToJsonl: string, event: PostpartumAudi
 }
 
 export function readAuditEventsJsonl(pathToJsonl: string, limit = 50): PostpartumAuditEvent[] {
+  const parsed = readAllAuditEventsJsonl(pathToJsonl);
+  const boundedLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 50;
+  return parsed.slice(-boundedLimit).reverse();
+}
+
+export function readAllAuditEventsJsonl(pathToJsonl: string): PostpartumAuditEvent[] {
   const absolutePath = resolve(pathToJsonl);
   if (!existsSync(absolutePath)) return [];
 
@@ -94,7 +116,34 @@ export function readAuditEventsJsonl(pathToJsonl: string, limit = 50): Postpartu
       }
     })
     .filter((item): item is PostpartumAuditEvent => item !== null);
+  return parsed;
+}
 
-  const boundedLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 50;
-  return parsed.slice(-boundedLimit).reverse();
+export function updateAuditEventOutcome(
+  pathToJsonl: string,
+  eventId: string,
+  outcomePatch: Partial<Omit<PostpartumAuditOutcome, "updated_at">>
+): PostpartumAuditEvent | null {
+  const absolutePath = resolve(pathToJsonl);
+  const events = readAllAuditEventsJsonl(absolutePath);
+  if (events.length === 0) return null;
+
+  let updated: PostpartumAuditEvent | null = null;
+  const next = events.map((event) => {
+    if (event.eventId !== eventId) return event;
+    const outcome: PostpartumAuditOutcome = {
+      ...event.outcome,
+      ...outcomePatch,
+      updated_at: new Date().toISOString(),
+    };
+    updated = { ...event, outcome };
+    return updated;
+  });
+
+  if (!updated) return null;
+
+  mkdirSync(dirname(absolutePath), { recursive: true });
+  const body = `${next.map((item) => JSON.stringify(item)).join("\n")}\n`;
+  writeFileSync(absolutePath, body, "utf8");
+  return updated;
 }

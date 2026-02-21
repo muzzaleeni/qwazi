@@ -85,4 +85,6 @@ npm run postpartum:example
 - CLI supports JSONL pilot audit logs via `--audit-log` (with optional `--include-input`).
 - Web evaluation calls are persisted automatically to `logs/postpartum-history.jsonl`.
 - Recent history endpoint: `GET /api/postpartum/audit/recent?limit=50`.
+- Outcome update endpoint: `POST /api/postpartum/audit/outcome`.
+- Dashboard supports editing `care_sought`, `care_time`, `care_type`, `resolved`, and `notes`.
 - This is triage support logic, not diagnosis or treatment advice.

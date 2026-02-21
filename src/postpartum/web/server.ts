@@ -6,6 +6,7 @@ import {
   appendAuditEventJsonl,
   createPostpartumAuditEvent,
   readAuditEventsJsonl,
+  updateAuditEventOutcome,
 } from "../audit";
 import { evaluatePostpartumTriage, loadPostpartumRulesFromFile } from "../evaluator";
 import { PostpartumInput } from "../types";
@@ -50,6 +51,11 @@ function main() {
           count: events.length,
           limit,
         });
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/postpartum/audit/outcome") {
+        const payload = await readJson(req);
+        return handleOutcomeUpdate(payload, res);
       }
 
       if (req.method === "POST" && url.pathname === "/api/postpartum/evaluate") {
@@ -110,6 +116,27 @@ async function handleEvaluate(payload: unknown, res: ServerResponse) {
   }
 
   return json(res, 200, { result });
+}
+
+async function handleOutcomeUpdate(payload: unknown, res: ServerResponse) {
+  if (!isRecord(payload)) {
+    return json(res, 400, { error: "Invalid payload; expected JSON object." });
+  }
+
+  const eventId = typeof payload.eventId === "string" ? payload.eventId.trim() : "";
+  if (eventId.length === 0) {
+    return json(res, 400, { error: "eventId is required." });
+  }
+
+  const outcomeRaw = isRecord(payload.outcome) ? payload.outcome : {};
+  const outcomePatch = normalizeOutcomePatch(outcomeRaw);
+  const updated = updateAuditEventOutcome(DEFAULT_HISTORY_LOG, eventId, outcomePatch);
+
+  if (!updated) {
+    return json(res, 404, { error: "Audit event not found." });
+  }
+
+  return json(res, 200, { event: updated });
 }
 
 function extractInput(payload: Record<string, unknown>): PostpartumInput {
@@ -181,6 +208,48 @@ function parsePositiveInt(raw: string | null, fallback: number, max: number): nu
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.min(parsed, max);
+}
+
+function normalizeOutcomePatch(outcome: Record<string, unknown>): {
+  care_sought?: boolean;
+  care_time?: number;
+  care_type?: string;
+  resolved?: boolean;
+  notes?: string;
+} {
+  const careSought = parseOptionalBoolean(outcome.care_sought);
+  const resolved = parseOptionalBoolean(outcome.resolved);
+  const careTime = parseOptionalNumber(outcome.care_time);
+  const careType =
+    typeof outcome.care_type === "string" ? outcome.care_type.trim() : undefined;
+  const notes = typeof outcome.notes === "string" ? outcome.notes.trim() : undefined;
+  const patch: {
+    care_sought?: boolean;
+    care_time?: number;
+    care_type?: string;
+    resolved?: boolean;
+    notes?: string;
+  } = {};
+  if (careSought !== undefined) patch.care_sought = careSought;
+  if (careTime !== undefined) patch.care_time = careTime;
+  if (careType && careType.length > 0) patch.care_type = careType;
+  if (resolved !== undefined) patch.resolved = resolved;
+  if (notes && notes.length > 0) patch.notes = notes;
+  return patch;
+}
+
+function parseOptionalBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  return undefined;
+}
+
+function parseOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
 }
 
 main();
