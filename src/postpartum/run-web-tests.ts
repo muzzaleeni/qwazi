@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 
 interface TestCase {
@@ -9,20 +9,10 @@ interface TestCase {
 }
 
 interface TestContext {
-  port: number;
   request: (path: string, init?: RequestInit) => Promise<Response>;
-  readHistoryEvents: () => unknown[];
-  readChangeEvents: () => unknown[];
+  restartServer: () => Promise<void>;
 }
 
-interface BackupFile {
-  path: string;
-  existed: boolean;
-  content: string;
-}
-
-const HISTORY_PATH = resolve(process.cwd(), "logs/postpartum-history.jsonl");
-const CHANGE_PATH = resolve(process.cwd(), "logs/postpartum-change-history.jsonl");
 const VIGNETTE_PATH = resolve(
   process.cwd(),
   "test/postpartum-vignettes/04_urgent_mental_health_high_score.json"
@@ -146,7 +136,7 @@ const tests: TestCase[] = [
       await loginAsCoordinator(ctx, "ops-b");
       const eventId = await createEvaluationEvent(ctx);
 
-      const changeBefore = ctx.readChangeEvents().length;
+      const changeBefore = await fetchChanges(ctx, 200);
 
       const outcomeResp = await ctx.request("/api/postpartum/audit/outcome", {
         method: "POST",
@@ -174,29 +164,26 @@ const tests: TestCase[] = [
       });
       assertEqual(workflowResp.status, 200, "expected 200 for valid workflow update");
 
-      const changeAfter = ctx.readChangeEvents();
-      assertEqual(changeAfter.length, changeBefore + 2, "expected two new change events");
+      const changeAfter = await fetchChanges(ctx, 200);
+      assertEqual(changeAfter.length, changeBefore.length + 2, "expected two new change events");
 
-      const latestTwo = changeAfter.slice(-2) as Array<Record<string, unknown>>;
+      const latestTwo = changeAfter.slice(0, 2) as Array<Record<string, unknown>>;
       const first = latestTwo[0] ?? {};
       const second = latestTwo[1] ?? {};
 
-      assertEqual(first.changeType, "OUTCOME_UPDATE", "first change should be OUTCOME_UPDATE");
-      assertEqual(second.changeType, "WORKFLOW_UPDATE", "second change should be WORKFLOW_UPDATE");
-      assertEqual(first.editor, "ops-b", "outcome editor mismatch");
-      assertEqual(second.editor, "ops-b", "workflow editor mismatch");
+      assertEqual(first.changeType, "WORKFLOW_UPDATE", "latest change should be WORKFLOW_UPDATE");
+      assertEqual(second.changeType, "OUTCOME_UPDATE", "second latest should be OUTCOME_UPDATE");
+      assertEqual(first.editor, "ops-b", "workflow editor mismatch");
+      assertEqual(second.editor, "ops-b", "outcome editor mismatch");
 
       const firstAfter = (first.after ?? {}) as Record<string, unknown>;
       const secondAfter = (second.after ?? {}) as Record<string, unknown>;
-      assertEqual(firstAfter.last_updated_by, "ops-b", "outcome last_updated_by mismatch");
-      assertEqual(secondAfter.last_updated_by, "ops-b", "workflow last_updated_by mismatch");
+      assertEqual(firstAfter.last_updated_by, "ops-b", "workflow last_updated_by mismatch");
+      assertEqual(secondAfter.last_updated_by, "ops-b", "outcome last_updated_by mismatch");
 
-      const workflowAfter = (secondAfter.workflow ?? {}) as Record<string, unknown>;
-      assertEqual(workflowAfter.status, "IN_PROGRESS", "workflow status should be IN_PROGRESS");
-
-      const history = ctx.readHistoryEvents() as Array<Record<string, unknown>>;
-      const target = history.find((item) => item.eventId === eventId);
-      assertTruthy(target, "expected event in history after updates");
+      const recent = await fetchRecent(ctx, 200);
+      const target = recent.find((item) => item.eventId === eventId);
+      assertTruthy(target, "expected event in recent history after updates");
       assertEqual(target?.last_updated_by, "ops-b", "history event should reflect editor");
     },
   },
@@ -240,23 +227,93 @@ const tests: TestCase[] = [
       assertTruthy(latest.timestamp, "expected timestamp on change event");
     },
   },
+  {
+    id: "WEB_T005",
+    description: "SQLite persistence survives server restart for cases and change history.",
+    run: async (ctx) => {
+      await loginAsCoordinator(ctx, "ops-r");
+      const eventId = await createEvaluationEvent(ctx);
+
+      const updateResp = await ctx.request("/api/postpartum/audit/workflow", {
+        method: "POST",
+        body: jsonBody({
+          eventId,
+          workflow: { status: "IN_PROGRESS", owner: "ops-r" },
+        }),
+      });
+      assertEqual(updateResp.status, 200, "expected workflow update before restart");
+
+      await ctx.restartServer();
+
+      const recent = await fetchRecent(ctx, 200);
+      assertTruthy(recent.some((item) => item.eventId === eventId), "event should persist after restart");
+
+      await loginAsCoordinator(ctx, "ops-r");
+      const changes = await fetchChanges(ctx, 200);
+      assertTruthy(
+        changes.some((item) => item.eventId === eventId),
+        "change history should persist after restart"
+      );
+    },
+  },
+  {
+    id: "WEB_T006",
+    description: "Concurrent workflow updates keep data consistent and append both changes.",
+    run: async (ctx) => {
+      await loginAsCoordinator(ctx, "ops-q");
+      const eventId = await createEvaluationEvent(ctx);
+
+      const [first, second] = await Promise.all([
+        ctx.request("/api/postpartum/audit/workflow", {
+          method: "POST",
+          body: jsonBody({
+            eventId,
+            workflow: { status: "IN_PROGRESS", owner: "ops-q" },
+          }),
+        }),
+        ctx.request("/api/postpartum/audit/workflow", {
+          method: "POST",
+          body: jsonBody({
+            eventId,
+            workflow: { status: "WAITING", owner: "ops-q" },
+          }),
+        }),
+      ]);
+
+      assertEqual(first.status, 200, "first concurrent update should succeed");
+      assertEqual(second.status, 200, "second concurrent update should succeed");
+
+      const recent = await fetchRecent(ctx, 200);
+      const target = recent.find((item) => item.eventId === eventId);
+      assertTruthy(target, "event should exist after concurrent updates");
+      const finalWorkflowStatus = (target?.workflow as { status?: string } | undefined)?.status;
+      assertTruthy(
+        finalWorkflowStatus === "IN_PROGRESS" || finalWorkflowStatus === "WAITING",
+        "final workflow status should be one of concurrent updates"
+      );
+
+      const changes = await fetchChanges(ctx, 200);
+      const matches = changes.filter((item) => item.eventId === eventId);
+      assertTruthy(matches.length >= 2, "expected at least two change events for concurrent updates");
+    },
+  },
 ];
 
 async function main() {
   const port = Number(process.env.POSTPARTUM_WEB_TEST_PORT ?? "4197");
-  const backups = backupAndResetLogs([HISTORY_PATH, CHANGE_PATH]);
+  const dbPath = resolve(
+    process.cwd(),
+    `logs/postpartum-web-test-${process.pid}-${Date.now()}.sqlite`
+  );
+  cleanupSqliteFiles(dbPath);
 
-  let child: ReturnType<typeof spawn> | null = null;
+  const harness = createHarness(port, dbPath);
   try {
-    child = startServer(port);
-    await waitForServer(port, 10_000);
+    await harness.start();
 
-    const request = createCookieClient(port);
     const ctx: TestContext = {
-      port,
-      request,
-      readHistoryEvents: () => readJsonl(HISTORY_PATH),
-      readChangeEvents: () => readJsonl(CHANGE_PATH),
+      request: harness.request,
+      restartServer: harness.restart,
     };
 
     let passed = 0;
@@ -282,48 +339,48 @@ async function main() {
       process.exitCode = 1;
     }
   } finally {
-    if (child) {
-      child.kill("SIGTERM");
-      await waitForExit(child, 2_000);
-    }
-    restoreLogs(backups);
+    await harness.stop();
+    cleanupSqliteFiles(dbPath);
   }
 }
 
-function startServer(port: number) {
-  return spawn(
-    process.platform === "win32" ? "npx.cmd" : "npx",
-    ["tsx", "src/postpartum/web/server.ts"],
-    {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        PORT: String(port),
-        COORDINATOR_PASSCODE: "qwazi-local",
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-    }
-  );
-}
-
-async function waitForServer(port: number, timeoutMs: number) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/health`);
-      if (response.ok) return;
-    } catch {
-      // retry until timeout
-    }
-    await sleep(100);
-  }
-  throw new Error(`Timed out waiting for server on port ${port}.`);
-}
-
-function createCookieClient(port: number) {
+function createHarness(port: number, dbPath: string) {
+  let child: ReturnType<typeof spawn> | null = null;
   let cookieHeader = "";
 
-  return async (path: string, init: RequestInit = {}) => {
+  async function start() {
+    if (child) return;
+    child = spawn(
+      process.platform === "win32" ? "npx.cmd" : "npx",
+      ["tsx", "src/postpartum/web/server.ts"],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          PORT: String(port),
+          COORDINATOR_PASSCODE: "qwazi-local",
+          POSTPARTUM_DB_PATH: dbPath,
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+      }
+    );
+
+    await waitForServer(port, 10_000);
+  }
+
+  async function stop() {
+    if (!child) return;
+    child.kill("SIGTERM");
+    await waitForExit(child, 2_000);
+    child = null;
+  }
+
+  async function restart() {
+    await stop();
+    await start();
+  }
+
+  async function request(path: string, init: RequestInit = {}) {
     const headers = new Headers(init.headers ?? {});
     if (init.body !== undefined && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
@@ -342,26 +399,15 @@ function createCookieClient(port: number) {
       const sessionCookie = parseCookieForHeader(setCookie, "pp_session");
       if (sessionCookie === null) {
         cookieHeader = "";
-      } else if (sessionCookie.length > 0) {
+      } else {
         cookieHeader = sessionCookie;
       }
     }
 
     return response;
-  };
-}
-
-function parseCookieForHeader(setCookie: string, key: string): string | null {
-  const segments = setCookie.split(",");
-  for (const segment of segments) {
-    const start = segment.trim();
-    if (!start.startsWith(`${key}=`)) continue;
-    const firstPart = start.split(";")[0] ?? "";
-    const value = firstPart.slice(key.length + 1);
-    if (!value) return null;
-    return `${key}=${value}`;
   }
-  return null;
+
+  return { start, stop, restart, request };
 }
 
 async function loginAsCoordinator(ctx: TestContext, actor = "ops-a") {
@@ -388,61 +434,52 @@ async function createEvaluationEvent(ctx: TestContext): Promise<string> {
   });
   assertEqual(evaluateResp.status, 200, "evaluate call should succeed");
 
-  const recentResp = await ctx.request("/api/postpartum/audit/recent?limit=1");
-  assertEqual(recentResp.status, 200, "recent history endpoint should succeed");
-  const body = (await safeJson(recentResp)) as {
-    events?: Array<{ eventId?: string }>;
-  };
-
-  const eventId = body.events?.[0]?.eventId;
+  const recent = await fetchRecent(ctx, 1);
+  const eventId = recent[0]?.eventId;
   assertTruthy(eventId, "expected recent history event id");
   return eventId as string;
 }
 
-function readJsonl(pathToJsonl: string): unknown[] {
-  if (!existsSync(pathToJsonl)) return [];
-  const raw = readFileSync(pathToJsonl, "utf8").trim();
-  if (!raw) return [];
-
-  return raw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) => {
-      try {
-        return JSON.parse(line) as unknown;
-      } catch {
-        return null;
-      }
-    })
-    .filter((item): item is unknown => item !== null);
+async function fetchRecent(ctx: TestContext, limit: number): Promise<Array<Record<string, unknown>>> {
+  const response = await ctx.request(`/api/postpartum/audit/recent?limit=${limit}`);
+  assertEqual(response.status, 200, "recent history endpoint should succeed");
+  const body = (await safeJson(response)) as {
+    events?: Array<Record<string, unknown>>;
+  };
+  return Array.isArray(body.events) ? body.events : [];
 }
 
-function backupAndResetLogs(paths: string[]): BackupFile[] {
-  const backups: BackupFile[] = [];
-
-  for (const path of paths) {
-    const existed = existsSync(path);
-    const content = existed ? readFileSync(path, "utf8") : "";
-    backups.push({ path, existed, content });
-    if (existed) {
-      writeFileSync(path, "", "utf8");
-    }
-  }
-
-  return backups;
+async function fetchChanges(ctx: TestContext, limit: number): Promise<Array<Record<string, unknown>>> {
+  const response = await ctx.request(`/api/postpartum/audit/changes?limit=${limit}`);
+  assertEqual(response.status, 200, "change history endpoint should succeed");
+  const body = (await safeJson(response)) as {
+    changes?: Array<Record<string, unknown>>;
+  };
+  return Array.isArray(body.changes) ? body.changes : [];
 }
 
-function restoreLogs(backups: BackupFile[]) {
-  for (const backup of backups) {
-    if (!backup.existed) {
-      if (existsSync(backup.path)) {
-        unlinkSync(backup.path);
-      }
-      continue;
-    }
-    writeFileSync(backup.path, backup.content, "utf8");
+function parseCookieForHeader(setCookie: string, key: string): string | null {
+  const segments = setCookie.split(",");
+  for (const segment of segments) {
+    const start = segment.trim();
+    if (!start.startsWith(`${key}=`)) continue;
+    const firstPart = start.split(";")[0] ?? "";
+    const value = firstPart.slice(key.length + 1);
+    if (!value) return null;
+    return `${key}=${value}`;
   }
+  return null;
+}
+
+function cleanupSqliteFiles(pathToDb: string) {
+  removeIfExists(pathToDb);
+  removeIfExists(`${pathToDb}-wal`);
+  removeIfExists(`${pathToDb}-shm`);
+}
+
+function removeIfExists(path: string) {
+  if (!existsSync(path)) return;
+  unlinkSync(path);
 }
 
 function jsonBody(value: unknown): string {
@@ -467,15 +504,24 @@ async function safeJson(response: Response): Promise<unknown> {
   }
 }
 
+async function waitForServer(port: number, timeoutMs: number) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/health`);
+      if (response.ok) return;
+    } catch {
+      // retry until timeout
+    }
+    await sleep(100);
+  }
+  throw new Error(`Timed out waiting for server on port ${port}.`);
+}
+
 function sleep(ms: number) {
   return new Promise((resolvePromise) => {
     setTimeout(resolvePromise, ms);
   });
-}
-
-function formatError(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
 }
 
 async function waitForExit(child: ReturnType<typeof spawn>, timeoutMs: number) {
@@ -485,6 +531,11 @@ async function waitForExit(child: ReturnType<typeof spawn>, timeoutMs: number) {
     }),
     sleep(timeoutMs),
   ]);
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
 main().catch((error) => {

@@ -1,34 +1,35 @@
-import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { extname, join, resolve } from "node:path";
 import { URL } from "node:url";
 import {
-  appendAuditChangeEventJsonl,
   appendAuditEventJsonl,
-  createAuditChangeEvent,
   createPostpartumAuditEvent,
-  readAuditChangeEventsJsonl,
-  readAuditEventsJsonl,
-  updateAuditEventOutcome,
-  updateAuditEventWorkflow,
 } from "../audit";
 import { evaluatePostpartumTriage, loadPostpartumRulesFromFile } from "../evaluator";
+import { PostpartumStore } from "../store";
 import { PostpartumInput } from "../types";
 
 const PORT = Number(process.env.PORT ?? 4173);
 const STATIC_DIR = resolve(__dirname, "static");
 const RULES_PATH = resolve(process.cwd(), "src/config/rules.postpartum.de.v1.json");
 const DEFAULT_AUDIT_LOG = resolve(process.cwd(), "logs/postpartum-web.jsonl");
-const DEFAULT_HISTORY_LOG = resolve(process.cwd(), "logs/postpartum-history.jsonl");
-const DEFAULT_CHANGE_LOG = resolve(process.cwd(), "logs/postpartum-change-history.jsonl");
+const DEFAULT_DB_PATH = resolve(process.env.POSTPARTUM_DB_PATH ?? "logs/postpartum.sqlite");
+const LEGACY_HISTORY_LOG_PATH = resolve(process.cwd(), "logs/postpartum-history.jsonl");
+const LEGACY_CHANGE_LOG_PATH = resolve(process.cwd(), "logs/postpartum-change-history.jsonl");
 
 const SESSION_COOKIE_NAME = "pp_session";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const COORDINATOR_PASSCODE = process.env.COORDINATOR_PASSCODE ?? "qwazi-local";
 
 const rules = loadPostpartumRulesFromFile(RULES_PATH);
-const sessions = new Map<string, { actor: string; createdAt: string; expiresAt: number }>();
+const store = new PostpartumStore(DEFAULT_DB_PATH);
+const migrated = store.migrateFromJsonl(LEGACY_HISTORY_LOG_PATH, LEGACY_CHANGE_LOG_PATH);
+if (migrated.importedEvents > 0 || migrated.importedChanges > 0) {
+  process.stdout.write(
+    `Migrated legacy JSONL data into SQLite: ${migrated.importedEvents} events, ${migrated.importedChanges} changes.\n`
+  );
+}
 
 function main() {
   const server = createServer(async (req, res) => {
@@ -69,7 +70,7 @@ function main() {
 
       if (req.method === "GET" && url.pathname === "/api/postpartum/audit/recent") {
         const limit = parsePositiveInt(url.searchParams.get("limit"), 50, 200);
-        const events = readAuditEventsJsonl(DEFAULT_HISTORY_LOG, limit);
+        const events = store.readRecentAuditEvents(limit);
         return json(res, 200, {
           events,
           count: events.length,
@@ -82,7 +83,7 @@ function main() {
         if (!auth) return;
 
         const limit = parsePositiveInt(url.searchParams.get("limit"), 50, 200);
-        const changes = readAuditChangeEventsJsonl(DEFAULT_CHANGE_LOG, limit);
+        const changes = store.readRecentChangeEvents(limit);
         return json(res, 200, {
           changes,
           count: changes.length,
@@ -136,7 +137,7 @@ async function handleEvaluate(payload: unknown, res: ServerResponse) {
   const historyEvent = createPostpartumAuditEvent(input, result, {
     source: "postpartum-web-ui",
   });
-  appendAuditEventJsonl(DEFAULT_HISTORY_LOG, historyEvent);
+  store.insertAuditEvent(historyEvent);
 
   const audit = isRecord(payload.audit) ? payload.audit : undefined;
   const auditEnabled = Boolean(audit?.enabled);
@@ -187,23 +188,10 @@ async function handleOutcomeUpdate(
     return json(res, 400, { error: "No valid outcome fields provided." });
   }
 
-  const updated = updateAuditEventOutcome(
-    DEFAULT_HISTORY_LOG,
-    eventId,
-    outcomePatch,
-    auth.actor
-  );
+  const updated = store.updateOutcome(eventId, outcomePatch, auth.actor);
   if (!updated) {
     return json(res, 404, { error: "Audit event not found." });
   }
-
-  const change = createAuditChangeEvent(
-    "OUTCOME_UPDATE",
-    auth.actor,
-    outcomePatch,
-    updated
-  );
-  appendAuditChangeEventJsonl(DEFAULT_CHANGE_LOG, change);
 
   return json(res, 200, { event: updated.after });
 }
@@ -235,23 +223,10 @@ async function handleWorkflowUpdate(
     return json(res, 400, { error: "No valid workflow fields provided." });
   }
 
-  const updated = updateAuditEventWorkflow(
-    DEFAULT_HISTORY_LOG,
-    eventId,
-    workflowPatch,
-    auth.actor
-  );
+  const updated = store.updateWorkflow(eventId, workflowPatch, auth.actor);
   if (!updated) {
     return json(res, 404, { error: "Audit event not found." });
   }
-
-  const change = createAuditChangeEvent(
-    "WORKFLOW_UPDATE",
-    auth.actor,
-    workflowPatch,
-    updated
-  );
-  appendAuditChangeEventJsonl(DEFAULT_CHANGE_LOG, change);
 
   return json(res, 200, { event: updated.after });
 }
@@ -280,15 +255,7 @@ async function handleAuthLogin(payload: unknown, res: ServerResponse) {
 
   const actorRaw = typeof payload.actor === "string" ? payload.actor.trim() : "";
   const actor = actorRaw.length > 0 ? actorRaw : "coordinator";
-  const sessionId = randomUUID();
-  const now = Date.now();
-  const expiresAt = now + SESSION_TTL_SECONDS * 1000;
-
-  sessions.set(sessionId, {
-    actor,
-    createdAt: new Date(now).toISOString(),
-    expiresAt,
-  });
+  const { sessionId, session } = store.createSession(actor, SESSION_TTL_SECONDS);
 
   res.setHeader(
     "Set-Cookie",
@@ -297,14 +264,14 @@ async function handleAuthLogin(payload: unknown, res: ServerResponse) {
   return json(res, 200, {
     authenticated: true,
     actor,
-    expires_at: new Date(expiresAt).toISOString(),
+    expires_at: new Date(session.expiresAt).toISOString(),
   });
 }
 
 function handleAuthLogout(req: IncomingMessage, res: ServerResponse) {
   const cookies = parseCookies(req.headers.cookie ?? "");
   const sessionId = cookies[SESSION_COOKIE_NAME];
-  if (sessionId) sessions.delete(sessionId);
+  if (sessionId) store.deleteSession(sessionId);
   res.setHeader(
     "Set-Cookie",
     `${SESSION_COOKIE_NAME}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax`
@@ -327,13 +294,7 @@ function getSessionFromRequest(req: IncomingMessage):
   const cookies = parseCookies(req.headers.cookie ?? "");
   const sessionId = cookies[SESSION_COOKIE_NAME];
   if (!sessionId) return null;
-  const session = sessions.get(sessionId);
-  if (!session) return null;
-  if (session.expiresAt <= Date.now()) {
-    sessions.delete(sessionId);
-    return null;
-  }
-  return session;
+  return store.readSession(sessionId);
 }
 
 function extractInput(payload: Record<string, unknown>): PostpartumInput {

@@ -49,7 +49,8 @@ Web UI:
 - Outcome update API: `POST /api/postpartum/audit/outcome` with `{ eventId, outcome }` (auth required)
 - Workflow update API: `POST /api/postpartum/audit/workflow` with `{ eventId, workflow }` (auth required)
 - Coordinator passcode env var: `COORDINATOR_PASSCODE` (default: `qwazi-local`)
-- Change trail file: `logs/postpartum-change-history.jsonl`
+- SQLite DB file: `POSTPARTUM_DB_PATH` (default: `logs/postpartum.sqlite`)
+- Legacy JSONL history/change files are auto-imported into SQLite on first run if tables are empty
 
 Cardiovascular module:
 

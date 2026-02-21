@@ -89,7 +89,9 @@ npm run postpartum:example
 - v1 is deterministic (rule-based), with conservative uncertainty escalation.
 - every result now includes a structured `actionPlan` with Germany-specific routing.
 - CLI supports JSONL pilot audit logs via `--audit-log` (with optional `--include-input`).
-- Web evaluation calls are persisted automatically to `logs/postpartum-history.jsonl`.
+- Web evaluation history, immutable changes, and coordinator sessions are persisted in SQLite.
+- Default SQLite path: `logs/postpartum.sqlite` (override with `POSTPARTUM_DB_PATH`).
+- Legacy JSONL history/change logs auto-migrate into SQLite on first run when tables are empty.
 - Recent history endpoint: `GET /api/postpartum/audit/recent?limit=50`.
 - Change history endpoint: `GET /api/postpartum/audit/changes?limit=50` (auth required).
 - Auth session endpoint: `GET /api/postpartum/auth/session`.
@@ -98,12 +100,11 @@ npm run postpartum:example
 - Outcome update endpoint: `POST /api/postpartum/audit/outcome` (auth required).
 - Workflow update endpoint: `POST /api/postpartum/audit/workflow` (auth required).
 - Coordinator passcode comes from env var `COORDINATOR_PASSCODE` (defaults to `qwazi-local` for local dev).
-- Immutable coordinator change trail appends to `logs/postpartum-change-history.jsonl`.
 - Dashboard supports editing `care_sought`, `care_time`, `care_type`, `resolved`, and `notes`.
 - Coordinator workflow fields: `status`, `owner`, `follow_up_due_at`, `last_contact_at`.
 - Queue views: `Needs follow-up today`, `Overdue`, `Closed`.
 - Weekly ops metrics added: `% overdue`, `median time to close`, `open high-risk cases`.
 - Dashboard row quick actions: `Start` (IN_PROGRESS) and `Close` (CLOSED).
 - Dashboard shows case `last updated by` and timestamp for coordinator handoffs.
-- Dashboard includes a `Recent Change History` table backed by immutable JSONL change events.
+- Dashboard includes a `Recent Change History` table backed by immutable SQLite change records.
 - This is triage support logic, not diagnosis or treatment advice.
