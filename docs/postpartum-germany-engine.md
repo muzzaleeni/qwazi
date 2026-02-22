@@ -2,6 +2,9 @@
 
 This module pivots the project to postpartum silent morbidity screening for Germany-first workflows.
 
+Launch readiness tracker:
+- `docs/postpartum-mvp-launch-checklist.md`
+
 ## Scope (v1)
 
 - Population: postpartum adults (weeks 1-52)

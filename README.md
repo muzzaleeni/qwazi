@@ -93,6 +93,7 @@ test/
   postpartum-vignettes/                   # postpartum DE cases
 docs/
   mvp-readiness-checklist.md
+  postpartum-mvp-launch-checklist.md
   triage-engine.md
   postpartum-germany-engine.md
 ```
